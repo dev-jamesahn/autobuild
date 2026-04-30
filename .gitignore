@@ -1,0 +1,18 @@
+# Local account configuration and secrets
+*.env
+.env
+.env.*
+
+# Runtime logs and generated state
+*.log
+logs/
+tmp/
+state/
+runtime/
+
+# Editor and OS metadata
+.vscode/
+*.swp
+*~
+.DS_Store
+

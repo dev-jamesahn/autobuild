@@ -1,0 +1,68 @@
+#!/bin/bash
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+OPENWRT_SCRIPT_PATH="$SCRIPT_DIR/openwrt_autobuild.sh"
+ZEPHYROS_SCRIPT_PATH="$SCRIPT_DIR/zephyros_autobuild.sh"
+NOTIFIER_SCRIPT_PATH="$SCRIPT_DIR/send_daily_autobuild_report.sh"
+WORK_ROOT="${GCT_WORK_ROOT:-$HOME/gct_workspace}"
+AUTOBUILD_ROOT="${AUTOBUILD_ROOT:-$WORK_ROOT/autobuild}"
+AUTOBUILD_LOG_ROOT="${AUTOBUILD_LOG_ROOT:-$AUTOBUILD_ROOT/logs}"
+
+V100_CONFIG="$HOME/.config/openwrt_v1.00_autobuild.env"
+MASTER_CONFIG="$HOME/.config/openwrt_master_autobuild.env"
+ZEPHYROS_CONFIG="$HOME/.config/zephyros_autobuild.env"
+
+V100_LOG_ROOT="$AUTOBUILD_LOG_ROOT/openwrt/v1.00"
+MASTER_LOG_ROOT="$AUTOBUILD_LOG_ROOT/openwrt/master"
+ZEPHYROS_LOG_ROOT="$AUTOBUILD_LOG_ROOT/zephyros"
+NOTIFIER_LOG_ROOT="$AUTOBUILD_LOG_ROOT/notifier"
+
+V100_CRON_LOG="$V100_LOG_ROOT/cron_runner.log"
+MASTER_CRON_LOG="$MASTER_LOG_ROOT/cron_runner.log"
+ZEPHYROS_CRON_LOG="$ZEPHYROS_LOG_ROOT/cron_runner.log"
+NOTIFIER_CRON_LOG="$NOTIFIER_LOG_ROOT/daily_autobuild_mail_notifier.log"
+
+V100_CRON_TAG="# OPENWRT_AUTOBUILD_V100"
+MASTER_CRON_TAG="# OPENWRT_AUTOBUILD_MASTER"
+ZEPHYROS_CRON_TAG="# ZEPHYROS_AUTOBUILD"
+NOTIFIER_CRON_TAG="# DAILY_AUTOBUILD_MAIL_NOTIFIER"
+
+V100_CRON_LINE="0 0 * * * CONFIG_FILE=$V100_CONFIG /bin/bash -lc '$OPENWRT_SCRIPT_PATH >> \"$V100_CRON_LOG\" 2>&1' $V100_CRON_TAG"
+MASTER_CRON_LINE="1 0 * * * CONFIG_FILE=$MASTER_CONFIG /bin/bash -lc '$OPENWRT_SCRIPT_PATH >> \"$MASTER_CRON_LOG\" 2>&1' $MASTER_CRON_TAG"
+ZEPHYROS_CRON_LINE="2 0 * * * CONFIG_FILE=$ZEPHYROS_CONFIG /bin/bash -lc '$ZEPHYROS_SCRIPT_PATH >> \"$ZEPHYROS_CRON_LOG\" 2>&1' $ZEPHYROS_CRON_TAG"
+NOTIFIER_CRON_LINE="*/10 * * * * /bin/bash -lc '$NOTIFIER_SCRIPT_PATH >> \"$NOTIFIER_CRON_LOG\" 2>&1' $NOTIFIER_CRON_TAG"
+
+if [ ! -x "$OPENWRT_SCRIPT_PATH" ]; then
+    echo "Script not executable: $OPENWRT_SCRIPT_PATH"
+    exit 1
+fi
+
+if [ ! -x "$ZEPHYROS_SCRIPT_PATH" ]; then
+    echo "Script not executable: $ZEPHYROS_SCRIPT_PATH"
+    exit 1
+fi
+
+if [ ! -x "$NOTIFIER_SCRIPT_PATH" ]; then
+    echo "Script not executable: $NOTIFIER_SCRIPT_PATH"
+    exit 1
+fi
+
+mkdir -p "$V100_LOG_ROOT" "$MASTER_LOG_ROOT" "$ZEPHYROS_LOG_ROOT" "$NOTIFIER_LOG_ROOT"
+
+TMP_CRON="$(mktemp)"
+trap 'rm -f "$TMP_CRON"' EXIT
+
+crontab -l 2>/dev/null | grep -Ev 'OPENWRT_V100_AUTOBUILD|OPENWRT_AUTOBUILD_V100|OPENWRT_AUTOBUILD_MASTER|ZEPHYROS_AUTOBUILD|DAILY_AUTOBUILD_MAIL_NOTIFIER' > "$TMP_CRON" || true
+echo "$V100_CRON_LINE" >> "$TMP_CRON"
+echo "$MASTER_CRON_LINE" >> "$TMP_CRON"
+echo "$ZEPHYROS_CRON_LINE" >> "$TMP_CRON"
+echo "$NOTIFIER_CRON_LINE" >> "$TMP_CRON"
+crontab "$TMP_CRON"
+
+echo "Installed cron entries:"
+echo "$V100_CRON_LINE"
+echo "$MASTER_CRON_LINE"
+echo "$ZEPHYROS_CRON_LINE"
+echo "$NOTIFIER_CRON_LINE"
