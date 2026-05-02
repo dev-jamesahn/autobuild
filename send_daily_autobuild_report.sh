@@ -170,6 +170,7 @@ for section in sections:
     duration = extract_value(lines, "Duration")
     stage = extract_value(lines, "Current stage")
     fail_reason = extract_value(lines, "Fail reason")
+    failure_analysis = extract_value(lines, "Failure analysis")
     log_path = extract_value(lines, "Log path")
     git_subject = extract_value(lines, "  subject")
     status_color = "#177245" if result == "SUCCESS" else "#b42318" if result == "FAIL" else "#475467"
@@ -192,6 +193,8 @@ for section in sections:
         card_lines.append(f"<div><strong>Last commit:</strong> {escape(git_subject)}</div>")
     if fail_reason:
         card_lines.append(f"<div><strong>Fail reason:</strong> {escape(fail_reason)}</div>")
+    if failure_analysis:
+        card_lines.append(f"<div><strong>Failure analysis:</strong> {escape(failure_analysis)}</div>")
     if log_path:
         card_lines.append(f"<div><strong>Log path:</strong> <span style='font-family:monospace;color:#0b63ce;'>{escape(log_path)}</span></div>")
 

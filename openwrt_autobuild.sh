@@ -57,6 +57,7 @@ exec > >(tee -a "$BUILD_LOG") 2>&1
 CURRENT_STAGE="init"
 BUILD_RESULT="FAIL"
 FAIL_REASON=""
+FAILURE_ANALYSIS=""
 TARGET_NAME="OpenWrt ${OPENWRT_BRANCH}"
 MAIN_REPO_URL="https://release.gctsemi.com/openwrt"
 MAIN_REPO_DIR="$OPENWRT_DIR"
@@ -176,6 +177,7 @@ for section in sections:
     duration = extract_value(lines, "Duration")
     stage = extract_value(lines, "Current stage")
     fail_reason = extract_value(lines, "Fail reason")
+    failure_analysis = extract_value(lines, "Failure analysis")
     log_path = extract_value(lines, "Log path")
     git_subject = extract_value(lines, "  subject")
     status_color = "#177245" if result == "SUCCESS" else "#b42318" if result == "FAIL" else "#475467"
@@ -198,6 +200,8 @@ for section in sections:
         card_lines.append(f"<div><strong>Last commit:</strong> {escape(git_subject)}</div>")
     if fail_reason:
         card_lines.append(f"<div><strong>Fail reason:</strong> {escape(fail_reason)}</div>")
+    if failure_analysis:
+        card_lines.append(f"<div><strong>Failure analysis:</strong> {escape(failure_analysis)}</div>")
     if log_path:
         card_lines.append(f"<div><strong>Log path:</strong> <span style='font-family:monospace;color:#0b63ce;'>{escape(log_path)}</span></div>")
 
@@ -288,6 +292,11 @@ append_daily_target_status() {
         return
     fi
 
+    unset TARGET_NAME BUILD_RESULT CURRENT_STAGE BUILD_STARTED_AT BUILD_ENDED_AT
+    unset BUILD_DURATION_FMT RUN_TS BUILD_LOG FAIL_REASON FAILURE_ANALYSIS
+    unset MAIN_REPO_LAST_COMMIT MAIN_REPO_LAST_AUTHOR MAIN_REPO_LAST_DATE MAIN_REPO_LAST_SUBJECT
+    unset MANIFEST_GDM_COMMIT MANIFEST_SBL_COMMIT MANIFEST_UBOOT_COMMIT HASH_LOG
+
     # shellcheck disable=SC1090
     . "$summary_path"
 
@@ -324,6 +333,9 @@ append_daily_target_status() {
         echo "Log path     : ${BUILD_LOG:-}"
         if [ -n "${FAIL_REASON:-}" ]; then
             echo "Fail reason  : ${FAIL_REASON}"
+        fi
+        if [ -n "${FAILURE_ANALYSIS:-}" ]; then
+            echo "Failure analysis: ${FAILURE_ANALYSIS}"
         fi
         if [ -n "${MAIN_REPO_LAST_COMMIT:-}" ] || [ -n "${MAIN_REPO_LAST_SUBJECT:-}" ]; then
             echo "Git log      :"
@@ -375,6 +387,78 @@ append_git_commit_details() {
     done < <(git -C "$repo_dir" log --format='%H' -n "$count" -- "$@" 2>/dev/null || true)
 }
 
+extract_failure_analysis() {
+    local source_log=$1
+    local root_error=""
+    local package_error=""
+    local source_location=""
+    local source_path=""
+    local source_line=""
+    local source_rel=""
+    local repo_hint=""
+    local message=""
+
+    if [ ! -f "$source_log" ]; then
+        FAILURE_ANALYSIS=""
+        return
+    fi
+
+    root_error="$(grep -aEn 'fatal error:|[[:space:]]error:|undefined reference|cannot find|No such file or directory' "$source_log" 2>/dev/null \
+        | grep -avE 'ERROR: package/|fatal: not a git repository|/bin/find:|/find:|grep: .*binary file matches' \
+        | head -n 1 | tr -d '\r' || true)"
+    package_error="$(grep -aE 'ERROR: package/.*failed to build' "$source_log" 2>/dev/null | tail -n 1 | tr -d '\r' | sed -E 's/\x1B\[[0-9;]*[mK]//g; s/^[[:space:]]*//' || true)"
+
+    if [ -z "$root_error" ] && [ -z "$package_error" ]; then
+        FAILURE_ANALYSIS=""
+        return
+    fi
+
+    if [ -n "$root_error" ]; then
+        source_path="$(printf '%s\n' "$root_error" | sed -E 's#^[0-9]+:([^:]+):[0-9]+:.*#\1#')"
+        source_line="$(printf '%s\n' "$root_error" | sed -E 's#^[0-9]+:[^:]+:([0-9]+):.*#\1#')"
+        message="$(printf '%s\n' "$root_error" | sed -E 's#^[0-9]+:([^:]+:)?([0-9]+:)?([0-9]+:)?[[:space:]]*##')"
+
+        if [ -n "$source_path" ] && [ "$source_path" != "$root_error" ]; then
+            if [ -f "$source_path" ]; then
+                source_path="$(realpath "$source_path" 2>/dev/null || printf '%s' "$source_path")"
+            fi
+            source_location="$source_path"
+            if [ -n "$source_line" ] && [ "$source_line" != "$root_error" ]; then
+                source_location="$source_location:$source_line"
+            fi
+            source_rel="${source_path#$OPENWRT_DIR/}"
+            case "$source_rel" in
+                build_dir/*/component/*|gdm/component/*)
+                    repo_hint="linuxos component"
+                    ;;
+                package/*)
+                    repo_hint="OpenWrt package"
+                    ;;
+                target/*)
+                    repo_hint="OpenWrt target"
+                    ;;
+            esac
+        fi
+    fi
+
+    if [ -n "$package_error" ]; then
+        FAILURE_ANALYSIS="$package_error"
+    fi
+    if [ -n "$message" ]; then
+        if [ -n "$FAILURE_ANALYSIS" ]; then
+            FAILURE_ANALYSIS="$FAILURE_ANALYSIS; $message"
+        else
+            FAILURE_ANALYSIS="$message"
+        fi
+    fi
+    if [ -n "$source_location" ]; then
+        FAILURE_ANALYSIS="$FAILURE_ANALYSIS at $source_location"
+    fi
+    if [ -n "$repo_hint" ]; then
+        FAILURE_ANALYSIS="$FAILURE_ANALYSIS (likely source: $repo_hint)"
+    fi
+}
+
 analyze_failure() {
     local source_log
     local first_fatal
@@ -400,13 +484,22 @@ analyze_failure() {
         echo "Generated at   : $(date '+%Y-%m-%d %H:%M:%S')"
         echo "Current stage  : $CURRENT_STAGE"
         echo "Fail reason    : $FAIL_REASON"
+        extract_failure_analysis "$source_log"
+        if [ -n "$FAILURE_ANALYSIS" ]; then
+            echo "Failure analysis: $FAILURE_ANALYSIS"
+        fi
         echo
+        if [ -n "$FAILURE_ANALYSIS" ]; then
+            echo "[Failure analysis]"
+            echo "$FAILURE_ANALYSIS"
+            echo
+        fi
         echo "[Recent errors]"
-        grep -nE 'fatal error:|error:|No such file or directory|cannot find|undefined reference|make(\[[0-9]+\])?: \*\*\*' "$source_log" | tail -n 40 || true
+        grep -aEn 'fatal error:|error:|No such file or directory|cannot find|undefined reference|make(\[[0-9]+\])?: \*\*\*' "$source_log" | tail -n 40 || true
         echo
     } > "$FAILURE_REPORT"
 
-    first_fatal="$(grep -m 1 'fatal error:' "$source_log" || true)"
+    first_fatal="$(grep -a -m 1 'fatal error:' "$source_log" || true)"
     if [ -n "$first_fatal" ]; then
         source_path="$(printf '%s\n' "$first_fatal" | sed -E 's#^([^:]+):[0-9]+:.*#\1#')"
         header_path="$(printf '%s\n' "$first_fatal" | sed -E 's#^.*fatal error: ([^:]+):.*#\1#')"
@@ -512,6 +605,7 @@ finalize() {
         echo "HASH_LOG=$HASH_LOG"
         echo "FAILURE_REPORT=$FAILURE_REPORT"
         echo "FAIL_REASON=$(printf '%q' "$FAIL_REASON")"
+        echo "FAILURE_ANALYSIS=$(printf '%q' "$FAILURE_ANALYSIS")"
         echo "MAIN_REPO_URL=$(printf '%q' "$MAIN_REPO_URL")"
         echo "MAIN_REPO_DIR=$(printf '%q' "$MAIN_REPO_DIR")"
         echo "MAIN_REPO_COMMIT=$(printf '%q' "$MAIN_REPO_COMMIT")"
@@ -537,6 +631,9 @@ finalize() {
         echo "Failure rpt  : $FAILURE_REPORT"
         if [ -n "$FAIL_REASON" ]; then
             echo "Fail reason  : $FAIL_REASON"
+        fi
+        if [ -n "$FAILURE_ANALYSIS" ]; then
+            echo "Failure analysis: $FAILURE_ANALYSIS"
         fi
     } | tee "$STATUS_FILE"
 
