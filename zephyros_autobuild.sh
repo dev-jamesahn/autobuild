@@ -354,12 +354,59 @@ update_daily_status_file() {
     done < <(find "$AUTOBUILD_LOG_ROOT" -mindepth 3 -maxdepth 3 -type f -name latest_summary.env 2>/dev/null | sort | grep -Ev '/(openwrt|zephyros|utkernel)/')
 }
 
+extract_failure_analysis() {
+    local source_log=$1
+    local root_error=""
+    local message=""
+    local source_path=""
+    local source_line=""
+    local source_location=""
+
+    if [ ! -f "$source_log" ]; then
+        FAILURE_ANALYSIS=""
+        return
+    fi
+
+    root_error="$(grep -aEn 'CMake Error|fatal error:|[[:space:]]error:|undefined reference|cannot find|No such file or directory|ninja: build stopped|make(\[[0-9]+\])?: \*\*\*|FAILED:' "$source_log" 2>/dev/null \
+        | grep -avE 'warning:|grep: .*binary file matches' \
+        | head -n 1 | tr -d '\r' || true)"
+
+    if [ -z "$root_error" ]; then
+        FAILURE_ANALYSIS=""
+        return
+    fi
+
+    source_path="$(printf '%s\n' "$root_error" | sed -E 's#^[0-9]+:([^:]+):[0-9]+:.*#\1#')"
+    source_line="$(printf '%s\n' "$root_error" | sed -E 's#^[0-9]+:[^:]+:([0-9]+):.*#\1#')"
+    message="$(printf '%s\n' "$root_error" | sed -E 's#^[0-9]+:([^:]+:)?([0-9]+:)?([0-9]+:)?[[:space:]]*##')"
+
+    if [ -n "$source_path" ] && [ "$source_path" != "$root_error" ]; then
+        if [ -f "$source_path" ]; then
+            source_path="$(realpath "$source_path" 2>/dev/null || printf '%s' "$source_path")"
+        elif [ -f "$REPO_DIR/$source_path" ]; then
+            source_path="$REPO_DIR/$source_path"
+        fi
+
+        source_location="$source_path"
+        if [ -n "$source_line" ] && [ "$source_line" != "$root_error" ]; then
+            source_location="$source_location:$source_line"
+        fi
+    fi
+
+    FAILURE_ANALYSIS="$message"
+    if [ -n "$source_location" ]; then
+        FAILURE_ANALYSIS="$FAILURE_ANALYSIS at $source_location"
+    fi
+}
+
 analyze_failure() {
     local source_log
     source_log="$VERBOSE_LOG"
     if [ ! -f "$source_log" ] || [ ! -s "$source_log" ]; then
         source_log="$BUILD_LOG"
     fi
+
+    extract_failure_analysis "$source_log"
 
     {
         echo "=========================================="
@@ -373,7 +420,15 @@ analyze_failure() {
         echo "Generated at   : $(date '+%Y-%m-%d %H:%M:%S')"
         echo "Current stage  : $CURRENT_STAGE"
         echo "Fail reason    : $FAIL_REASON"
+        if [ -n "$FAILURE_ANALYSIS" ]; then
+            echo "Failure analysis: $FAILURE_ANALYSIS"
+        fi
         echo
+        if [ -n "$FAILURE_ANALYSIS" ]; then
+            echo "[Failure analysis]"
+            echo "$FAILURE_ANALYSIS"
+            echo
+        fi
         echo "[Recent errors]"
         grep -nEi 'error:|failed|No such file or directory|cannot find|undefined reference|ninja: build stopped|CMake Error' "$source_log" | tail -n 60 || true
         echo
@@ -422,6 +477,7 @@ finalize() {
         echo "HASH_LOG=$HASH_LOG"
         echo "FAILURE_REPORT=$FAILURE_REPORT"
         echo "FAIL_REASON=$(printf '%q' "$FAIL_REASON")"
+        echo "FAILURE_ANALYSIS=$(printf '%q' "$FAILURE_ANALYSIS")"
         echo "MAIN_REPO_URL=$(printf '%q' "$MAIN_REPO_URL")"
         echo "MAIN_REPO_DIR=$(printf '%q' "$MAIN_REPO_DIR")"
         echo "MAIN_REPO_COMMIT=$(printf '%q' "$MAIN_REPO_COMMIT")"
@@ -444,6 +500,9 @@ finalize() {
         echo "Failure rpt  : $FAILURE_REPORT"
         if [ -n "$FAIL_REASON" ]; then
             echo "Fail reason  : $FAIL_REASON"
+        fi
+        if [ -n "$FAILURE_ANALYSIS" ]; then
+            echo "Failure analysis: $FAILURE_ANALYSIS"
         fi
     } | tee "$STATUS_FILE"
 

@@ -176,16 +176,60 @@ update_daily_status_file() {
 
 extract_failure_analysis() {
     local source_log=$1
-    local first_error
+    local root_error=""
+    local package_error=""
+    local source_path=""
+    local source_line=""
+    local source_location=""
+    local message=""
 
     if [ ! -f "$source_log" ]; then
         FAILURE_ANALYSIS=""
         return
     fi
 
-    first_error="$(grep -aEn 'fatal error:|[[:space:]]error:|undefined reference|cannot find|No such file or directory|make(\[[0-9]+\])?: \*\*\*' "$source_log" 2>/dev/null \
+    root_error="$(grep -aEn 'CMake Error|fatal error:|[[:space:]]error:|undefined reference|cannot find|No such file or directory|ninja: build stopped|make(\[[0-9]+\])?: \*\*\*|FAILED:' "$source_log" 2>/dev/null \
+        | grep -avE 'warning:|grep: .*binary file matches' \
         | head -n 1 | tr -d '\r' || true)"
-    FAILURE_ANALYSIS="${first_error#*:}"
+    package_error="$(grep -aE 'ERROR: package/.*failed to build' "$source_log" 2>/dev/null | tail -n 1 | tr -d '\r' | sed -E 's/\x1B\[[0-9;]*[mK]//g; s/^[[:space:]]*//' || true)"
+
+    if [ -z "$root_error" ] && [ -z "$package_error" ]; then
+        FAILURE_ANALYSIS=""
+        return
+    fi
+
+    if [ -n "$root_error" ]; then
+        source_path="$(printf '%s\n' "$root_error" | sed -E 's#^[0-9]+:([^:]+):[0-9]+:.*#\1#')"
+        source_line="$(printf '%s\n' "$root_error" | sed -E 's#^[0-9]+:[^:]+:([0-9]+):.*#\1#')"
+        message="$(printf '%s\n' "$root_error" | sed -E 's#^[0-9]+:([^:]+:)?([0-9]+:)?([0-9]+:)?[[:space:]]*##')"
+
+        if [ -n "$source_path" ] && [ "$source_path" != "$root_error" ]; then
+            if [ -f "$source_path" ]; then
+                source_path="$(realpath "$source_path" 2>/dev/null || printf '%s' "$source_path")"
+            elif [ -f "$REPO_DIR/$source_path" ]; then
+                source_path="$REPO_DIR/$source_path"
+            fi
+
+            source_location="$source_path"
+            if [ -n "$source_line" ] && [ "$source_line" != "$root_error" ]; then
+                source_location="$source_location:$source_line"
+            fi
+        fi
+    fi
+
+    if [ -n "$package_error" ]; then
+        FAILURE_ANALYSIS="$package_error"
+    fi
+    if [ -n "$message" ]; then
+        if [ -n "$FAILURE_ANALYSIS" ]; then
+            FAILURE_ANALYSIS="$FAILURE_ANALYSIS; $message"
+        else
+            FAILURE_ANALYSIS="$message"
+        fi
+    fi
+    if [ -n "$source_location" ]; then
+        FAILURE_ANALYSIS="$FAILURE_ANALYSIS at $source_location"
+    fi
 }
 
 analyze_failure() {
@@ -211,6 +255,11 @@ analyze_failure() {
             echo "Failure analysis: $FAILURE_ANALYSIS"
         fi
         echo
+        if [ -n "$FAILURE_ANALYSIS" ]; then
+            echo "[Failure analysis]"
+            echo "$FAILURE_ANALYSIS"
+            echo
+        fi
         echo "[Recent errors]"
         grep -aEn 'fatal error:|[[:space:]]error:|No such file or directory|cannot find|undefined reference|make(\[[0-9]+\])?: \*\*\*' "$source_log" | tail -n 40 || true
         echo
