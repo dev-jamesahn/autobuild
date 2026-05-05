@@ -282,6 +282,11 @@ append_daily_target_status() {
         return
     fi
 
+    unset TARGET_NAME BUILD_RESULT CURRENT_STAGE BUILD_STARTED_AT BUILD_ENDED_AT
+    unset BUILD_DURATION_FMT RUN_TS BUILD_LOG FAIL_REASON FAILURE_ANALYSIS
+    unset MAIN_REPO_LAST_COMMIT MAIN_REPO_LAST_AUTHOR MAIN_REPO_LAST_DATE MAIN_REPO_LAST_SUBJECT
+    unset MANIFEST_GDM_COMMIT MANIFEST_SBL_COMMIT MANIFEST_UBOOT_COMMIT HASH_LOG
+
     # shellcheck disable=SC1090
     . "$summary_path"
 
@@ -318,6 +323,9 @@ append_daily_target_status() {
         echo "Log path     : ${BUILD_LOG:-}"
         if [ -n "${FAIL_REASON:-}" ]; then
             echo "Fail reason  : ${FAIL_REASON}"
+        fi
+        if [ -n "${FAILURE_ANALYSIS:-}" ]; then
+            echo "Failure analysis: ${FAILURE_ANALYSIS}"
         fi
         if [ -n "${MAIN_REPO_LAST_COMMIT:-}" ] || [ -n "${MAIN_REPO_LAST_SUBJECT:-}" ]; then
             echo "Git log      :"
