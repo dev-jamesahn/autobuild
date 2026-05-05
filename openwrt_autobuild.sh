@@ -421,7 +421,7 @@ extract_failure_analysis() {
         return
     fi
 
-    root_error="$(grep -aEn 'fatal error:|[[:space:]]error:|undefined reference|cannot find|No such file or directory' "$source_log" 2>/dev/null \
+    root_error="$(grep -aEn 'fatal error:|[[:space:]]error:|undefined reference|cannot find|No such file or directory|[[:space:]]\*\*\* .*Stop\.|[[:space:]]\*\*\* .*Error' "$source_log" 2>/dev/null \
         | grep -avE 'ERROR: package/|fatal: not a git repository|/bin/find:|/find:|grep: .*binary file matches' \
         | head -n 1 | tr -d '\r' || true)"
     package_error="$(grep -aE 'ERROR: package/.*failed to build' "$source_log" 2>/dev/null | tail -n 1 | tr -d '\r' | sed -E 's/\x1B\[[0-9;]*[mK]//g; s/^[[:space:]]*//' || true)"
@@ -513,7 +513,7 @@ analyze_failure() {
             echo
         fi
         echo "[Recent errors]"
-        grep -aEn 'fatal error:|error:|No such file or directory|cannot find|undefined reference|make(\[[0-9]+\])?: \*\*\*' "$source_log" | tail -n 40 || true
+        grep -aEn 'fatal error:|error:|No such file or directory|cannot find|undefined reference|[[:space:]]\*\*\* .*Stop\.|[[:space:]]\*\*\* .*Error|make(\[[0-9]+\])?: \*\*\*' "$source_log" | tail -n 40 || true
         echo
     } > "$FAILURE_REPORT"
 
