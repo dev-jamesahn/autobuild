@@ -16,6 +16,9 @@ LOCK_DIR="${LOCK_DIR:-$AUTOBUILD_TMP_ROOT/daily_autobuild_mail_notifier_${RUN_DA
 V100_SUMMARY_FILE="${V100_SUMMARY_FILE:-$AUTOBUILD_LOG_ROOT/openwrt/v1.00/latest_summary.env}"
 MASTER_SUMMARY_FILE="${MASTER_SUMMARY_FILE:-$AUTOBUILD_LOG_ROOT/openwrt/master/latest_summary.env}"
 ZEPHYROS_SUMMARY_FILE="${ZEPHYROS_SUMMARY_FILE:-$AUTOBUILD_LOG_ROOT/zephyros/latest_summary.env}"
+GDM7243A_UTKERNEL_SUMMARY_FILE="${GDM7243A_UTKERNEL_SUMMARY_FILE:-$AUTOBUILD_LOG_ROOT/uTKernel/gdm7243a/latest_summary.env}"
+GDM7243ST_UTKERNEL_SUMMARY_FILE="${GDM7243ST_UTKERNEL_SUMMARY_FILE:-$AUTOBUILD_LOG_ROOT/uTKernel/gdm7243st/latest_summary.env}"
+GDM7243I_ZEPHYR_SUMMARY_FILE="${GDM7243I_ZEPHYR_SUMMARY_FILE:-$AUTOBUILD_LOG_ROOT/zephyr_v2_3/gdm7243i/latest_summary.env}"
 
 if [ -f "$CONFIG_FILE" ]; then
     # shellcheck disable=SC1090
@@ -100,6 +103,21 @@ if ! summary_ready_for_today "$ZEPHYROS_SUMMARY_FILE"; then
     exit 0
 fi
 
+if ! summary_ready_for_today "$GDM7243A_UTKERNEL_SUMMARY_FILE"; then
+    echo "[INFO] Daily mail notifier waiting: GDM7243A uTKernel summary is not ready for $RUN_DATE"
+    exit 0
+fi
+
+if ! summary_ready_for_today "$GDM7243ST_UTKERNEL_SUMMARY_FILE"; then
+    echo "[INFO] Daily mail notifier waiting: GDM7243ST uTKernel summary is not ready for $RUN_DATE"
+    exit 0
+fi
+
+if ! summary_ready_for_today "$GDM7243I_ZEPHYR_SUMMARY_FILE"; then
+    echo "[INFO] Daily mail notifier waiting: GDM7243i zephyr-v2.3 summary is not ready for $RUN_DATE"
+    exit 0
+fi
+
 GMAIL_SMTP_USER="$GMAIL_SMTP_USER" \
 GMAIL_SMTP_APP_PASSWORD="$GMAIL_SMTP_APP_PASSWORD" \
 MAIL_TO="$MAIL_TO" \
@@ -162,10 +180,28 @@ def extract_value(lines, prefix):
 
 
 sections = parse_sections(body)
-summary_cards = []
+model_groups = []
+model_index = {}
+
+
+def split_model_item(section_name):
+    parts = section_name.split(maxsplit=1)
+    if len(parts) == 2 and parts[0].startswith("GDM"):
+        return parts[0], parts[1]
+    if section_name.startswith("OpenWrt ") or section_name == "Zephyros":
+        return "GDM7275X", section_name
+    return "Other", section_name
+
+
+def add_model_card(model_name, item_html):
+    if model_name not in model_index:
+        model_index[model_name] = {"name": model_name, "items": []}
+        model_groups.append(model_index[model_name])
+    model_index[model_name]["items"].append(item_html)
 
 for section in sections:
     lines = section["lines"]
+    model_name, item_name = split_model_item(section["name"])
     result = extract_value(lines, "Result")
     duration = extract_value(lines, "Duration")
     stage = extract_value(lines, "Current stage")
@@ -177,10 +213,10 @@ for section in sections:
     status_bg = "#ecfdf3" if result == "SUCCESS" else "#fef3f2" if result == "FAIL" else "#f2f4f7"
 
     card_lines = [
-        "<div style='border:1px solid #d0d5dd;border-radius:12px;padding:16px;background:#ffffff;margin-bottom:12px;'>",
+        "<div style='border:1px solid #e4e7ec;border-radius:8px;padding:14px 16px;background:#ffffff;margin:10px 0 0 18px;'>",
         "<div style='display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;'>",
-        f"<div style='font-size:16px;font-weight:700;color:#101828;'>{escape(section['name'])}</div>",
-        f"<div style='padding:4px 10px;border-radius:999px;background:{status_bg};color:{status_color};font-size:12px;font-weight:700;'>{escape(result or 'UNKNOWN')}</div>",
+        f"<div style='font-size:15px;font-weight:700;color:#101828;'>- {escape(item_name)}</div>",
+        f"<div style='padding:4px 10px;border-radius:999px;background:{status_bg};color:{status_color};font-size:12px;font-weight:700;white-space:nowrap;'>{escape(result or 'UNKNOWN')}</div>",
         "</div>",
         "<div style='font-size:13px;line-height:1.6;color:#344054;'>",
     ]
@@ -199,25 +235,36 @@ for section in sections:
         card_lines.append(f"<div><strong>Log path:</strong> <span style='font-family:monospace;color:#0b63ce;'>{escape(log_path)}</span></div>")
 
     card_lines.append("</div></div>")
-    summary_cards.append("".join(card_lines))
+    add_model_card(model_name, "".join(card_lines))
 
-summary_html = "".join(summary_cards) if summary_cards else "<div style='color:#475467;'>No parsed sections found.</div>"
+model_cards = []
+for group in model_groups:
+    item_count = len(group["items"])
+    model_cards.append(
+        "<div style='border:1px solid #d0d5dd;border-radius:10px;background:#f8fafc;margin-bottom:14px;padding:16px;'>"
+        "<div style='display:flex;align-items:center;justify-content:space-between;gap:12px;'>"
+        f"<div style='font-size:18px;font-weight:800;color:#101828;'>{escape(group['name'])}</div>"
+        f"<div style='font-size:12px;font-weight:700;color:#475467;background:#ffffff;border:1px solid #e4e7ec;border-radius:999px;padding:4px 10px;'>{item_count} item{'s' if item_count != 1 else ''}</div>"
+        "</div>"
+        "<div style='border-left:2px solid #d0d5dd;margin-top:12px;'>"
+        + "".join(group["items"])
+        + "</div></div>"
+    )
+
+summary_html = "".join(model_cards) if model_cards else "<div style='color:#475467;'>No parsed sections found.</div>"
+plain_body = "GCT-CS Daily Automated Build Report\n\nRaw daily report is omitted. Please view the HTML email for the model-grouped build summary."
 html_body = f"""\
 <html>
   <body style="margin:0;padding:24px;background:#f8fafc;font-family:'Segoe UI',Arial,sans-serif;color:#101828;">
     <div style="max-width:860px;margin:0 auto;">
-      <div style="background:linear-gradient(135deg,#0f172a 0%,#1d4ed8 100%);border-radius:16px;padding:24px 28px;color:#ffffff;margin-bottom:16px;">
+      <div style="background:#0f172a;border-radius:16px;padding:24px 28px;color:#ffffff;margin-bottom:16px;">
         <div style="font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;opacity:0.88;">GCT-CS</div>
         <div style="font-size:28px;font-weight:800;margin-top:6px;">Daily automated build report</div>
         <div style="font-size:14px;opacity:0.9;margin-top:8px;">Generated from the CS-buildserver</div>
       </div>
       <div style="background:#ffffff;border:1px solid #eaecf0;border-radius:16px;padding:20px 20px 8px;margin-bottom:16px;">
-        <div style="font-size:18px;font-weight:700;margin-bottom:14px;">{escape(subject.replace('GCT-CS Daily Automated Build Report - ', ''))} - Build Test Summary</div>
+        <div style="font-size:18px;font-weight:700;margin-bottom:14px;">{escape(subject.replace('GCT-CS Daily Automated Build Report - ', ''))} - Build Test Summary by Model</div>
         {summary_html}
-      </div>
-      <div style="background:#ffffff;border:1px solid #eaecf0;border-radius:16px;padding:20px;">
-        <div style="font-size:18px;font-weight:700;margin-bottom:14px;">Raw Daily Report</div>
-        <pre style="margin:0;white-space:pre-wrap;word-break:break-word;font-family:Consolas,'Courier New',monospace;font-size:12px;line-height:1.6;color:#101828;background:#f8fafc;border-radius:12px;padding:16px;border:1px solid #eaecf0;">{escape(body)}</pre>
       </div>
     </div>
   </body>
@@ -230,7 +277,7 @@ msg["From"] = f"{from_name} <{user}>" if from_name else user
 msg["To"] = ", ".join(recipients)
 if reply_to:
     msg["Reply-To"] = reply_to
-msg.set_content(body)
+msg.set_content(plain_body)
 msg.add_alternative(html_body, subtype="html")
 
 ctx = ssl.create_default_context()

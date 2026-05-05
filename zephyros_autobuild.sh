@@ -16,6 +16,7 @@ if [ -f "$CONFIG_FILE" ]; then
 fi
 
 PKG_VERSION="${PKG_VERSION:-0.0.0}"
+MODEL_LINEUP="${MODEL_LINEUP:-GDM7275X}"
 ZEPHYROS_CONFIG_SELECT="${ZEPHYROS_CONFIG_SELECT:-7}"
 ZEPHYROS_CONFIG_NAME="${ZEPHYROS_CONFIG_NAME:-gdm7259x_nsa}"
 ZEPHYROS_REPO_URL="${ZEPHYROS_REPO_URL:-https://jamesahn@vcs.gctsemi.com/OS/Zephyros}"
@@ -56,7 +57,7 @@ exec > >(tee -a "$BUILD_LOG") 2>&1
 CURRENT_STAGE="init"
 BUILD_RESULT="FAIL"
 FAIL_REASON=""
-TARGET_NAME="Zephyros"
+TARGET_NAME="${MODEL_LINEUP} Zephyros"
 MAIN_REPO_URL="$ZEPHYROS_REPO_URL"
 MAIN_REPO_DIR="$REPO_DIR"
 MAIN_REPO_COMMIT=""
@@ -287,7 +288,7 @@ append_daily_target_status() {
         summary_target_name="$TARGET_NAME"
     fi
 
-    if [ "$summary_target_name" = "Zephyros" ]; then
+    if [ "${summary_target_name#*Zephyros}" != "$summary_target_name" ]; then
         include_manifest_hashes=0
     fi
 
@@ -347,6 +348,10 @@ update_daily_status_file() {
     append_daily_target_status "OpenWrt master" "$AUTOBUILD_LOG_ROOT/openwrt/master/latest_summary.env"
     append_daily_target_status "Zephyros" "$AUTOBUILD_LOG_ROOT/zephyros/latest_summary.env"
 
+    while IFS= read -r summary_path; do
+        [ -n "$summary_path" ] || continue
+        append_daily_target_status "OS Autobuild" "$summary_path"
+    done < <(find "$AUTOBUILD_LOG_ROOT" -mindepth 3 -maxdepth 3 -type f -name latest_summary.env 2>/dev/null | sort | grep -Ev '/(openwrt|zephyros|utkernel)/')
 }
 
 analyze_failure() {
@@ -403,6 +408,7 @@ finalize() {
         echo "TARGET_NAME=$(printf '%q' "$TARGET_NAME")"
         echo "RUN_TS=$RUN_TS"
         echo "PKG_VERSION=$PKG_VERSION"
+        echo "MODEL_LINEUP=$(printf '%q' "$MODEL_LINEUP")"
         echo "ZEPHYROS_CONFIG_SELECT=$ZEPHYROS_CONFIG_SELECT"
         echo "ZEPHYROS_CONFIG_NAME=$ZEPHYROS_CONFIG_NAME"
         echo "BUILD_RESULT=$BUILD_RESULT"
@@ -521,6 +527,7 @@ EXP
 echo "[INFO] Zephyros autobuild started"
 echo "[INFO] Run directory : $RUN_DIR"
 echo "[INFO] Config file   : $CONFIG_FILE"
+echo "[INFO] Model lineup  : $MODEL_LINEUP"
 echo "[INFO] Package ver   : $PKG_VERSION"
 echo "[INFO] Repo dir      : $REPO_DIR"
 echo "[INFO] Config select : $ZEPHYROS_CONFIG_SELECT"

@@ -18,6 +18,20 @@ fi
 OPENWRT_BRANCH="${OPENWRT_BRANCH:-v1.00}"
 PKG_VERSION="${PKG_VERSION:-0.0.0}"
 BRANCH_SLUG="${OPENWRT_BRANCH//[^A-Za-z0-9._-]/_}"
+MODEL_LINEUP="${MODEL_LINEUP:-GDM7275X}"
+OPENWRT_SOURCE_REPO_URL="${OPENWRT_SOURCE_REPO_URL:-https://release.gctsemi.com/openwrt}"
+GDM_SOURCE_DISPLAY="${GDM_SOURCE_DISPLAY:-linuxos master}"
+GDM_SOURCE_REPO_URL="${GDM_SOURCE_REPO_URL:-https://release.gctsemi.com/linuxos}"
+GDM_SOURCE_BRANCH="${GDM_SOURCE_BRANCH:-master}"
+GDM_SOURCE_CLONE_DIR="${GDM_SOURCE_CLONE_DIR:-linuxos_autobuild}"
+SBL_SOURCE_DISPLAY="${SBL_SOURCE_DISPLAY:-7275X SBL}"
+SBL_SOURCE_REPO_URL="${SBL_SOURCE_REPO_URL:-https://release.gctsemi.com/sbl/7275x}"
+SBL_SOURCE_BRANCH="${SBL_SOURCE_BRANCH:-}"
+SBL_SOURCE_CLONE_DIR="${SBL_SOURCE_CLONE_DIR:-7275X_sbl_autobuild}"
+UBOOT_SOURCE_DISPLAY="${UBOOT_SOURCE_DISPLAY:-7275X U-Boot}"
+UBOOT_SOURCE_REPO_URL="${UBOOT_SOURCE_REPO_URL:-https://release.gctsemi.com/u-boot/7275x}"
+UBOOT_SOURCE_BRANCH="${UBOOT_SOURCE_BRANCH:-}"
+UBOOT_SOURCE_CLONE_DIR="${UBOOT_SOURCE_CLONE_DIR:-7275X_uboot_autobuild}"
 
 WORK_ROOT="${GCT_WORK_ROOT:-${WORK_ROOT:-$BASE_DIR/gct_workspace}}"
 AUTOBUILD_ROOT="${AUTOBUILD_ROOT:-$WORK_ROOT/autobuild}"
@@ -58,8 +72,8 @@ CURRENT_STAGE="init"
 BUILD_RESULT="FAIL"
 FAIL_REASON=""
 FAILURE_ANALYSIS=""
-TARGET_NAME="OpenWrt ${OPENWRT_BRANCH}"
-MAIN_REPO_URL="https://release.gctsemi.com/openwrt"
+TARGET_NAME="${MODEL_LINEUP} OpenWrt ${OPENWRT_BRANCH}"
+MAIN_REPO_URL="$OPENWRT_SOURCE_REPO_URL"
 MAIN_REPO_DIR="$OPENWRT_DIR"
 MAIN_REPO_COMMIT=""
 MAIN_REPO_LAST_COMMIT=""
@@ -71,9 +85,9 @@ MANIFEST_SBL_COMMIT=""
 MANIFEST_UBOOT_COMMIT=""
 
 REPOS=(
-    "GDM|linuxos master|linuxos_autobuild|https://release.gctsemi.com/linuxos|master"
-    "SBL|7275X SBL|7275X_sbl_autobuild|https://release.gctsemi.com/sbl/7275x|"
-    "UBOOT|7275X U-Boot|7275X_uboot_autobuild|https://release.gctsemi.com/u-boot/7275x|"
+    "GDM|$GDM_SOURCE_DISPLAY|$GDM_SOURCE_CLONE_DIR|$GDM_SOURCE_REPO_URL|$GDM_SOURCE_BRANCH"
+    "SBL|$SBL_SOURCE_DISPLAY|$SBL_SOURCE_CLONE_DIR|$SBL_SOURCE_REPO_URL|$SBL_SOURCE_BRANCH"
+    "UBOOT|$UBOOT_SOURCE_DISPLAY|$UBOOT_SOURCE_CLONE_DIR|$UBOOT_SOURCE_REPO_URL|$UBOOT_SOURCE_BRANCH"
 )
 
 format_duration() {
@@ -304,7 +318,7 @@ append_daily_target_status() {
         summary_target_name="$TARGET_NAME"
     fi
 
-    if [ "$summary_target_name" = "Zephyros" ]; then
+    if [ "${summary_target_name#*Zephyros}" != "$summary_target_name" ]; then
         include_manifest_hashes=0
     fi
 
@@ -367,6 +381,10 @@ update_daily_status_file() {
     append_daily_target_status "OpenWrt master" "$AUTOBUILD_LOG_ROOT/openwrt/master/latest_summary.env"
     append_daily_target_status "Zephyros" "$AUTOBUILD_LOG_ROOT/zephyros/latest_summary.env"
 
+    while IFS= read -r summary_path; do
+        [ -n "$summary_path" ] || continue
+        append_daily_target_status "OS Autobuild" "$summary_path"
+    done < <(find "$AUTOBUILD_LOG_ROOT" -mindepth 3 -maxdepth 3 -type f -name latest_summary.env 2>/dev/null | sort | grep -Ev '/(openwrt|zephyros|utkernel)/')
 }
 
 append_git_commit_details() {
@@ -593,6 +611,20 @@ finalize() {
         echo "TARGET_NAME=$(printf '%q' "$TARGET_NAME")"
         echo "RUN_TS=$RUN_TS"
         echo "OPENWRT_BRANCH=$OPENWRT_BRANCH"
+        echo "MODEL_LINEUP=$(printf '%q' "$MODEL_LINEUP")"
+        echo "OPENWRT_SOURCE_REPO_URL=$(printf '%q' "$OPENWRT_SOURCE_REPO_URL")"
+        echo "GDM_SOURCE_DISPLAY=$(printf '%q' "$GDM_SOURCE_DISPLAY")"
+        echo "GDM_SOURCE_REPO_URL=$(printf '%q' "$GDM_SOURCE_REPO_URL")"
+        echo "GDM_SOURCE_BRANCH=$(printf '%q' "$GDM_SOURCE_BRANCH")"
+        echo "GDM_SOURCE_CLONE_DIR=$(printf '%q' "$GDM_SOURCE_CLONE_DIR")"
+        echo "SBL_SOURCE_DISPLAY=$(printf '%q' "$SBL_SOURCE_DISPLAY")"
+        echo "SBL_SOURCE_REPO_URL=$(printf '%q' "$SBL_SOURCE_REPO_URL")"
+        echo "SBL_SOURCE_BRANCH=$(printf '%q' "$SBL_SOURCE_BRANCH")"
+        echo "SBL_SOURCE_CLONE_DIR=$(printf '%q' "$SBL_SOURCE_CLONE_DIR")"
+        echo "UBOOT_SOURCE_DISPLAY=$(printf '%q' "$UBOOT_SOURCE_DISPLAY")"
+        echo "UBOOT_SOURCE_REPO_URL=$(printf '%q' "$UBOOT_SOURCE_REPO_URL")"
+        echo "UBOOT_SOURCE_BRANCH=$(printf '%q' "$UBOOT_SOURCE_BRANCH")"
+        echo "UBOOT_SOURCE_CLONE_DIR=$(printf '%q' "$UBOOT_SOURCE_CLONE_DIR")"
         echo "PKG_VERSION=$PKG_VERSION"
         echo "BUILD_RESULT=$BUILD_RESULT"
         echo "CURRENT_STAGE=$CURRENT_STAGE"
@@ -666,7 +698,7 @@ ensure_repo_ready() {
     local url=$4
     local check_branch=$5
     local repo_dir="$CLONE_ROOT/$dir_name"
-    local branch hash
+    local branch hash current_url
 
     CURRENT_STAGE="sync_${key,,}"
     echo
@@ -679,6 +711,14 @@ ensure_repo_ready() {
             git clone -b "$check_branch" --single-branch "$url" "$repo_dir"
         else
             git clone "$url" "$repo_dir"
+        fi
+    else
+        current_url="$(git -C "$repo_dir" config --get remote.origin.url 2>/dev/null || true)"
+        if [ "$current_url" != "$url" ]; then
+            echo "[INFO] Update origin URL: $repo_dir"
+            echo "[INFO]   old: ${current_url:-none}"
+            echo "[INFO]   new: $url"
+            git -C "$repo_dir" remote set-url origin "$url"
         fi
     fi
 
@@ -790,9 +830,14 @@ echo "[INFO] Workspace root: $WORK_ROOT"
 echo "[INFO] Autobuild root: $AUTOBUILD_ROOT"
 echo "[INFO] Run directory : $RUN_DIR"
 echo "[INFO] Config file    : $CONFIG_FILE"
+echo "[INFO] Model lineup   : $MODEL_LINEUP"
 echo "[INFO] Work directory: $WORK_DIR"
 echo "[INFO] Package ver   : $PKG_VERSION"
 echo "[INFO] OpenWrt dir   : $OPENWRT_DIR"
+echo "[INFO] OpenWrt repo  : $OPENWRT_SOURCE_REPO_URL"
+echo "[INFO] GDM repo      : $GDM_SOURCE_REPO_URL (${GDM_SOURCE_BRANCH:-current})"
+echo "[INFO] SBL repo      : $SBL_SOURCE_REPO_URL (${SBL_SOURCE_BRANCH:-current})"
+echo "[INFO] U-Boot repo   : $UBOOT_SOURCE_REPO_URL (${UBOOT_SOURCE_BRANCH:-current})"
 echo "[INFO] Clone root    : $CLONE_ROOT"
 echo "[INFO] Failure rpt  : $FAILURE_REPORT"
 echo
@@ -817,10 +862,10 @@ echo
 echo "[OpenWrt clone]"
 echo "------------------------------------------"
 rm -rf "$OPENWRT_DIR"
-git clone -b "$OPENWRT_BRANCH" --single-branch https://release.gctsemi.com/openwrt "$OPENWRT_DIR"
+git clone -b "$OPENWRT_BRANCH" --single-branch "$OPENWRT_SOURCE_REPO_URL" "$OPENWRT_DIR"
 OPENWRT_COMMIT="$(git -C "$OPENWRT_DIR" rev-parse HEAD)"
 MAIN_REPO_COMMIT="$OPENWRT_COMMIT"
-echo "OPENWRT|$OPENWRT_BRANCH|$OPENWRT_COMMIT|$OPENWRT_DIR|https://release.gctsemi.com/openwrt" | tee -a "$HASH_LOG"
+echo "OPENWRT|$OPENWRT_BRANCH|$OPENWRT_COMMIT|$OPENWRT_DIR|$OPENWRT_SOURCE_REPO_URL" | tee -a "$HASH_LOG"
 
 CURRENT_STAGE="update_manifest"
 echo
