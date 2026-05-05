@@ -367,9 +367,12 @@ extract_failure_analysis() {
         return
     fi
 
-    root_error="$(grep -aEn 'CMake Error|fatal error:|[[:space:]]error:|undefined reference|cannot find|No such file or directory|ninja: build stopped|make(\[[0-9]+\])?: \*\*\*|FAILED:' "$source_log" 2>/dev/null \
+    root_error="$(grep -aEn 'CMake Error|fatal error:|[[:space:]]error:|undefined reference|cannot find|No such file or directory|ninja: build stopped|make(\[[0-9]+\])?: \*\*\*' "$source_log" 2>/dev/null \
         | grep -avE 'warning:|grep: .*binary file matches' \
         | head -n 1 | tr -d '\r' || true)"
+    if [ -z "$root_error" ]; then
+        root_error="$(grep -aEn 'FAILED:' "$source_log" 2>/dev/null | head -n 1 | tr -d '\r' || true)"
+    fi
 
     if [ -z "$root_error" ]; then
         FAILURE_ANALYSIS=""
