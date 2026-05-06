@@ -33,7 +33,7 @@ GMAIL_SMTP_INSECURE_TLS="${GMAIL_SMTP_INSECURE_TLS:-1}"
 MAIL_FROM_NAME="${MAIL_FROM_NAME:-GCT-CS AutoBuild}"
 MAIL_REPLY_TO="${MAIL_REPLY_TO:-jamesahn@gctsemi.com}"
 SAMBA_UPLOAD_CONFIG="${SAMBA_UPLOAD_CONFIG:-$BASE_DIR/.config/autobuild_samba_upload.env}"
-SAMBA_UPLOAD_UNC_ROOT="${SAMBA_UPLOAD_UNC_ROOT:-\\\\gctsemi.com\\NetK\\ENG\\ENG05\\CS\\Test Log\\Daily_build}"
+SAMBA_UPLOAD_UNC_ROOT="${SAMBA_UPLOAD_UNC_ROOT:-K:\\ENG\\ENG05\\CS\\Test Log\\Daily_build}"
 
 if [ -f "$SAMBA_UPLOAD_CONFIG" ]; then
     # shellcheck disable=SC1090
