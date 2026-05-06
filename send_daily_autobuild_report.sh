@@ -32,6 +32,13 @@ MAIL_TO="${MAIL_TO:-jamesahn@gctsemi.com,kaihan@gctsemi.com}"
 GMAIL_SMTP_INSECURE_TLS="${GMAIL_SMTP_INSECURE_TLS:-1}"
 MAIL_FROM_NAME="${MAIL_FROM_NAME:-GCT-CS AutoBuild}"
 MAIL_REPLY_TO="${MAIL_REPLY_TO:-jamesahn@gctsemi.com}"
+SAMBA_UPLOAD_CONFIG="${SAMBA_UPLOAD_CONFIG:-$BASE_DIR/.config/autobuild_samba_upload.env}"
+SAMBA_UPLOAD_UNC_ROOT="${SAMBA_UPLOAD_UNC_ROOT:-\\\\gctsemi.com\\NetK\\ENG\\ENG05\\CS\\Test Log\\Daily_build}"
+
+if [ -f "$SAMBA_UPLOAD_CONFIG" ]; then
+    # shellcheck disable=SC1090
+    . "$SAMBA_UPLOAD_CONFIG"
+fi
 
 mkdir -p "$AUTOBUILD_TMP_ROOT" "$AUTOBUILD_STATE_ROOT"
 
@@ -118,11 +125,23 @@ if ! summary_ready_for_today "$GDM7243I_ZEPHYR_SUMMARY_FILE"; then
     exit 0
 fi
 
+UPLOAD_SCRIPT="${UPLOAD_SCRIPT:-$BASE_DIR/autobuild/upload_daily_autobuild_logs.sh}"
+if [ -x "$UPLOAD_SCRIPT" ]; then
+    if ! RUN_DATE="$RUN_DATE" DAILY_STATUS_FILE="$DAILY_STATUS_FILE" "$UPLOAD_SCRIPT"; then
+        echo "[WARN] Daily log upload failed"
+    fi
+else
+    echo "[WARN] Daily log upload skipped: upload script is not executable: $UPLOAD_SCRIPT"
+fi
+
 GMAIL_SMTP_USER="$GMAIL_SMTP_USER" \
 GMAIL_SMTP_APP_PASSWORD="$GMAIL_SMTP_APP_PASSWORD" \
 MAIL_TO="$MAIL_TO" \
 GMAIL_MAIL_SUBJECT="GCT-CS Daily Automated Build Report - $(date '+%m/%d/%Y')" \
 DAILY_STATUS_FILE="$DAILY_STATUS_FILE" \
+RUN_DATE="$RUN_DATE" \
+AUTOBUILD_LOG_ROOT="$AUTOBUILD_LOG_ROOT" \
+SAMBA_UPLOAD_UNC_ROOT="$SAMBA_UPLOAD_UNC_ROOT" \
 GMAIL_SMTP_INSECURE_TLS="$GMAIL_SMTP_INSECURE_TLS" \
 MAIL_FROM_NAME="$MAIL_FROM_NAME" \
 MAIL_REPLY_TO="$MAIL_REPLY_TO" \
@@ -141,6 +160,9 @@ recipients = [addr.strip() for addr in os.environ["MAIL_TO"].split(",") if addr.
 insecure_tls = os.environ.get("GMAIL_SMTP_INSECURE_TLS", "1") == "1"
 from_name = os.environ.get("MAIL_FROM_NAME", "").strip()
 reply_to = os.environ.get("MAIL_REPLY_TO", "").strip()
+run_date = os.environ.get("RUN_DATE", "").strip()
+autobuild_log_root = os.environ.get("AUTOBUILD_LOG_ROOT", "").rstrip("/")
+samba_unc_root = os.environ.get("SAMBA_UPLOAD_UNC_ROOT", "").rstrip("\\")
 
 if not recipients:
     raise SystemExit("MAIL_TO is empty")
@@ -179,6 +201,15 @@ def extract_value(lines, prefix):
     return ""
 
 
+def display_log_path(log_path):
+    if samba_unc_root and run_date and autobuild_log_root:
+        local_prefix = autobuild_log_root + "/"
+        if log_path.startswith(local_prefix):
+            rel_path = log_path[len(local_prefix):].replace("/", "\\")
+            return samba_unc_root + "\\" + run_date + "\\" + rel_path
+    return log_path
+
+
 sections = parse_sections(body)
 model_groups = []
 model_index = {}
@@ -208,6 +239,7 @@ for section in sections:
     fail_reason = extract_value(lines, "Fail reason")
     failure_analysis = extract_value(lines, "Failure analysis")
     log_path = extract_value(lines, "Log path")
+    display_path = display_log_path(log_path)
     git_subject = extract_value(lines, "  subject")
     status_color = "#177245" if result == "SUCCESS" else "#b42318" if result == "FAIL" else "#475467"
     status_bg = "#ecfdf3" if result == "SUCCESS" else "#fef3f2" if result == "FAIL" else "#f2f4f7"
@@ -231,8 +263,8 @@ for section in sections:
         card_lines.append(f"<div><strong>Fail reason:</strong> {escape(fail_reason)}</div>")
     if failure_analysis:
         card_lines.append(f"<div><strong>Failure analysis:</strong> {escape(failure_analysis)}</div>")
-    if log_path:
-        card_lines.append(f"<div><strong>Log path:</strong> <span style='font-family:monospace;color:#0b63ce;'>{escape(log_path)}</span></div>")
+    if display_path:
+        card_lines.append(f"<div><strong>Log path:</strong> <span style='font-family:monospace;color:#0b63ce;'>{escape(display_path)}</span></div>")
 
     card_lines.append("</div></div>")
     add_model_card(model_name, "".join(card_lines))
@@ -297,12 +329,3 @@ PY
 
 printf 'sent_at=%s\nrun_date=%s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$RUN_DATE" > "$SENT_FLAG_FILE"
 echo "[INFO] Daily mail notifier sent to: $MAIL_TO"
-
-UPLOAD_SCRIPT="${UPLOAD_SCRIPT:-$BASE_DIR/autobuild/upload_daily_autobuild_logs.sh}"
-if [ -x "$UPLOAD_SCRIPT" ]; then
-    if ! RUN_DATE="$RUN_DATE" DAILY_STATUS_FILE="$DAILY_STATUS_FILE" "$UPLOAD_SCRIPT"; then
-        echo "[WARN] Daily log upload failed"
-    fi
-else
-    echo "[WARN] Daily log upload skipped: upload script is not executable: $UPLOAD_SCRIPT"
-fi

@@ -86,6 +86,7 @@ copy_to_local_dir() {
 copy_to_gio_uri() {
     local target_uri=${1%/}
     local rel_path
+    local dest_uri
 
     if ! command -v gio >/dev/null 2>&1; then
         echo "[WARN] Daily log upload skipped: gio command is not available"
@@ -111,7 +112,9 @@ copy_to_gio_uri() {
 
     while IFS= read -r file_path; do
         rel_path="${file_path#"$PACKAGE_DIR"/}"
-        gio copy -f "$file_path" "$target_uri/$RUN_DATE/$rel_path"
+        dest_uri="$target_uri/$RUN_DATE/$rel_path"
+        gio remove "$dest_uri" >/dev/null 2>&1 || true
+        gio copy "$file_path" "$dest_uri"
     done < <(find "$PACKAGE_DIR" -type f | sort)
 
     echo "[INFO] Daily log upload completed: $target_uri/$RUN_DATE"
