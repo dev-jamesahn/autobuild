@@ -297,3 +297,12 @@ PY
 
 printf 'sent_at=%s\nrun_date=%s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$RUN_DATE" > "$SENT_FLAG_FILE"
 echo "[INFO] Daily mail notifier sent to: $MAIL_TO"
+
+UPLOAD_SCRIPT="${UPLOAD_SCRIPT:-$BASE_DIR/autobuild/upload_daily_autobuild_logs.sh}"
+if [ -x "$UPLOAD_SCRIPT" ]; then
+    if ! RUN_DATE="$RUN_DATE" DAILY_STATUS_FILE="$DAILY_STATUS_FILE" "$UPLOAD_SCRIPT"; then
+        echo "[WARN] Daily log upload failed"
+    fi
+else
+    echo "[WARN] Daily log upload skipped: upload script is not executable: $UPLOAD_SCRIPT"
+fi
