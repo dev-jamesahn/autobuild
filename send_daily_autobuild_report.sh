@@ -3,6 +3,7 @@
 set -euo pipefail
 
 BASE_DIR="$HOME"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_FILE="${CONFIG_FILE:-$HOME/.config/openwrt_autobuild.env}"
 RUN_DATE="${RUN_DATE:-$(date +%Y%m%d)}"
 WORK_ROOT="${GCT_WORK_ROOT:-${WORK_ROOT:-$BASE_DIR/gct_workspace}}"
@@ -70,7 +71,7 @@ summary_ready_for_today() {
 }
 
 run_daily_log_upload() {
-    local upload_script="${UPLOAD_SCRIPT:-$BASE_DIR/autobuild/upload_daily_autobuild_logs.sh}"
+    local upload_script="${UPLOAD_SCRIPT:-$SCRIPT_DIR/upload_daily_autobuild_logs.sh}"
 
     if [ -x "$upload_script" ]; then
         if ! RUN_DATE="$RUN_DATE" DAILY_STATUS_FILE="$DAILY_STATUS_FILE" UPLOAD_FLAG_FILE="$UPLOAD_FLAG_FILE" "$upload_script"; then
@@ -304,7 +305,7 @@ html_body = f"""\
         <div style="font-size:14px;opacity:0.9;margin-top:8px;">Generated from the CS-buildserver</div>
       </div>
       <div style="background:#ffffff;border:1px solid #eaecf0;border-radius:16px;padding:20px 20px 8px;margin-bottom:16px;">
-        <div style="font-size:18px;font-weight:700;margin-bottom:14px;">{escape(subject.replace('GCT-CS Daily Automated Build Report - ', ''))} - Build Test Summary by Model</div>
+        <div style="font-size:18px;font-weight:700;margin-bottom:14px;">{escape(subject.replace('GCT-CS Daily Automated Build Report - ', ''))} - Build Test Summary</div>
         {summary_html}
       </div>
     </div>
