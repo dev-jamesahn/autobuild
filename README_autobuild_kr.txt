@@ -1,5 +1,44 @@
-OpenWrt Autobuild 설치/운영 가이드
-===================================
+GCT Autobuild 설치/운영 가이드
+===============================
+
+현재 운영 구조 요약
+-------------------
+autobuild는 모델 라인업별로 아래 항목을 매일 실행합니다.
+
+- GDM7275X
+  - OpenWrt v1.00
+  - OpenWrt master
+  - Zephyros
+- GDM7243A
+  - uTKernel - gdm7243a_no_l2
+- GDM7243ST
+  - uTKernel - gdm7243mt_32mb_no_l2_vport14
+- GDM7243i
+  - zephyr-v2.3 - gdm7243i_nbiot_ntn_quad
+
+주요 스크립트:
+
+- openwrt_autobuild.sh: OpenWrt 빌드 자동화
+- zephyros_autobuild.sh: Zephyros 빌드 자동화
+- os_autobuild.sh: 모델/OS 공용 빌드 자동화
+- send_daily_autobuild_report.sh: 모델별 daily report mail 발송
+- upload_daily_autobuild_logs.sh: daily log Samba 업로드
+- install_autobuild_cron.sh: 권장 cron 설치 명령
+- install_openwrt_autobuild_cron.sh: 기존 호환용 cron 설치 명령
+
+Daily report mail은 중앙 notifier가 담당합니다. 개별 build script에서
+메일을 직접 발송하지 않습니다.
+
+Daily build log는 아래 Samba 네트워크 드라이브 기준으로 날짜별 업로드됩니다.
+
+K:\ENG\ENG05\CS\Test Log\Daily_build\YYYYMMDD
+
+계정별 설정 파일은 ~/.config/*.env에 두며, Git repository에 넣지 않습니다.
+메일 credential이 포함될 수 있으므로 설정 파일 권한은 600을 권장합니다.
+
+
+이전 OpenWrt 중심 설치 가이드
+==============================
 
 이 문서는 같은 서버의 다른 계정에서도 OpenWrt v1.00 autobuild를
 설치하고 운영할 수 있도록 절차를 정리한 가이드입니다.

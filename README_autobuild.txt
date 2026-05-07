@@ -1,5 +1,44 @@
-OpenWrt Autobuild Setup Guide
-=============================
+GCT Autobuild Setup Guide
+=========================
+
+Current Operation Summary
+-------------------------
+The daily autobuild is organized by model lineup:
+
+- GDM7275X
+  - OpenWrt v1.00
+  - OpenWrt master
+  - Zephyros
+- GDM7243A
+  - uTKernel - gdm7243a_no_l2
+- GDM7243ST
+  - uTKernel - gdm7243mt_32mb_no_l2_vport14
+- GDM7243i
+  - zephyr-v2.3 - gdm7243i_nbiot_ntn_quad
+
+Main scripts:
+
+- openwrt_autobuild.sh: OpenWrt build automation
+- zephyros_autobuild.sh: Zephyros build automation
+- os_autobuild.sh: generic model/OS build automation
+- send_daily_autobuild_report.sh: model-grouped daily mail notifier
+- upload_daily_autobuild_logs.sh: daily log upload to Samba
+- install_autobuild_cron.sh: preferred cron installer
+- install_openwrt_autobuild_cron.sh: backward-compatible cron installer
+
+Daily report mail is handled by the central notifier. Individual build scripts
+do not send daily mail directly.
+
+Daily build logs are uploaded to the mapped Windows drive path:
+
+K:\ENG\ENG05\CS\Test Log\Daily_build\YYYYMMDD
+
+Account-specific settings belong in ~/.config/*.env and must not be committed.
+Use 600 permissions because the env files can contain mail credentials.
+
+
+Legacy OpenWrt-Focused Setup Guide
+==================================
 
 This guide explains how to install and run the OpenWrt v1.00 autobuild
 scripts under another account on the same server.

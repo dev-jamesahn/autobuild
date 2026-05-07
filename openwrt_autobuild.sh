@@ -55,15 +55,6 @@ LATEST_LINK="$LOG_ROOT/latest"
 LATEST_STATUS_FILE="$LOG_ROOT/latest_status.txt"
 LATEST_SUMMARY_FILE="$LOG_ROOT/latest_summary.env"
 DAILY_STATUS_FILE="${DAILY_STATUS_FILE:-$AUTOBUILD_STATE_ROOT/daily_autobuild_status_${RUN_DATE}.txt}"
-EMAIL_NOTI_ENABLED="${EMAIL_NOTI_ENABLED:-0}"
-GMAIL_SMTP_USER="${GMAIL_SMTP_USER:-}"
-GMAIL_SMTP_APP_PASSWORD="${GMAIL_SMTP_APP_PASSWORD:-}"
-MAIL_TO="${MAIL_TO:-jamesahn@gctsemi.com,kaihan@gctsemi.com}"
-GMAIL_SMTP_INSECURE_TLS="${GMAIL_SMTP_INSECURE_TLS:-1}"
-MAIL_FROM_NAME="${MAIL_FROM_NAME:-GCT-CS AutoBuild}"
-MAIL_REPLY_TO="${MAIL_REPLY_TO:-jamesahn@gctsemi.com}"
-MAIL_NOTIFY_SEND_ON="${MAIL_NOTIFY_SEND_ON:-notifier}"
-
 mkdir -p "$WORK_DIR" "$CLONE_ROOT" "$RUN_DIR" "$AUTOBUILD_STATE_ROOT"
 touch "$BUILD_LOG"
 exec > >(tee -a "$BUILD_LOG") 2>&1
@@ -673,7 +664,6 @@ finalize() {
     cp "$STATUS_FILE" "$LATEST_STATUS_FILE"
     cp "$SUMMARY_FILE" "$LATEST_SUMMARY_FILE"
     update_daily_status_file
-    send_daily_status_email
 
     echo "[INFO] Latest run link : $LATEST_LINK"
     echo "[INFO] Latest status   : $LATEST_STATUS_FILE"
