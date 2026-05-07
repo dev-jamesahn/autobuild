@@ -9,6 +9,7 @@ AUTOBUILD_ROOT="${AUTOBUILD_ROOT:-$WORK_ROOT/autobuild}"
 AUTOBUILD_LOG_ROOT="${AUTOBUILD_LOG_ROOT:-$AUTOBUILD_ROOT/logs}"
 AUTOBUILD_STATE_ROOT="${AUTOBUILD_STATE_ROOT:-$AUTOBUILD_ROOT/state}"
 DAILY_STATUS_FILE="${DAILY_STATUS_FILE:-$AUTOBUILD_STATE_ROOT/daily_autobuild_status_${RUN_DATE}.txt}"
+UPLOAD_FLAG_FILE="${UPLOAD_FLAG_FILE:-$AUTOBUILD_STATE_ROOT/.daily_autobuild_logs_uploaded_${RUN_DATE}.flag}"
 SAMBA_UPLOAD_CONFIG="${SAMBA_UPLOAD_CONFIG:-$BASE_DIR/.config/autobuild_samba_upload.env}"
 
 SAMBA_UPLOAD_ENABLED="${SAMBA_UPLOAD_ENABLED:-1}"
@@ -80,6 +81,7 @@ copy_to_local_dir() {
 
     mkdir -p "$target_dir"
     rsync -a --delete "$PACKAGE_DIR/" "$target_dir/"
+    printf 'uploaded_at=%s\nrun_date=%s\ntarget=%s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$RUN_DATE" "$target_dir" > "$UPLOAD_FLAG_FILE"
     echo "[INFO] Daily log upload completed: $target_dir"
 }
 
@@ -117,6 +119,7 @@ copy_to_gio_uri() {
         gio copy "$file_path" "$dest_uri"
     done < <(find "$PACKAGE_DIR" -type f | sort)
 
+    printf 'uploaded_at=%s\nrun_date=%s\ntarget=%s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$RUN_DATE" "$target_uri/$RUN_DATE" > "$UPLOAD_FLAG_FILE"
     echo "[INFO] Daily log upload completed: $target_uri/$RUN_DATE"
 }
 

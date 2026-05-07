@@ -12,6 +12,7 @@ AUTOBUILD_TMP_ROOT="${AUTOBUILD_TMP_ROOT:-$AUTOBUILD_ROOT/tmp}"
 AUTOBUILD_STATE_ROOT="${AUTOBUILD_STATE_ROOT:-$AUTOBUILD_ROOT/state}"
 DAILY_STATUS_FILE="${DAILY_STATUS_FILE:-$AUTOBUILD_STATE_ROOT/daily_autobuild_status_${RUN_DATE}.txt}"
 SENT_FLAG_FILE="${SENT_FLAG_FILE:-$AUTOBUILD_STATE_ROOT/.daily_autobuild_mail_sent_${RUN_DATE}.flag}"
+UPLOAD_FLAG_FILE="${UPLOAD_FLAG_FILE:-$AUTOBUILD_STATE_ROOT/.daily_autobuild_logs_uploaded_${RUN_DATE}.flag}"
 LOCK_DIR="${LOCK_DIR:-$AUTOBUILD_TMP_ROOT/daily_autobuild_mail_notifier_${RUN_DATE}.lock}"
 V100_SUMMARY_FILE="${V100_SUMMARY_FILE:-$AUTOBUILD_LOG_ROOT/openwrt/v1.00/latest_summary.env}"
 MASTER_SUMMARY_FILE="${MASTER_SUMMARY_FILE:-$AUTOBUILD_LOG_ROOT/openwrt/master/latest_summary.env}"
@@ -68,6 +69,18 @@ summary_ready_for_today() {
     return 0
 }
 
+run_daily_log_upload() {
+    local upload_script="${UPLOAD_SCRIPT:-$BASE_DIR/autobuild/upload_daily_autobuild_logs.sh}"
+
+    if [ -x "$upload_script" ]; then
+        if ! RUN_DATE="$RUN_DATE" DAILY_STATUS_FILE="$DAILY_STATUS_FILE" UPLOAD_FLAG_FILE="$UPLOAD_FLAG_FILE" "$upload_script"; then
+            echo "[WARN] Daily log upload failed"
+        fi
+    else
+        echo "[WARN] Daily log upload skipped: upload script is not executable: $upload_script"
+    fi
+}
+
 if [ "$EMAIL_NOTI_ENABLED" != "1" ]; then
     echo "[INFO] Daily mail notifier skipped: EMAIL_NOTI_ENABLED=$EMAIL_NOTI_ENABLED"
     exit 0
@@ -84,6 +97,9 @@ if [ ! -f "$DAILY_STATUS_FILE" ]; then
 fi
 
 if [ -f "$SENT_FLAG_FILE" ]; then
+    if [ ! -f "$UPLOAD_FLAG_FILE" ]; then
+        run_daily_log_upload
+    fi
     echo "[INFO] Daily mail notifier skipped: already sent for RUN_DATE=$RUN_DATE"
     exit 0
 fi
@@ -125,14 +141,7 @@ if ! summary_ready_for_today "$GDM7243I_ZEPHYR_SUMMARY_FILE"; then
     exit 0
 fi
 
-UPLOAD_SCRIPT="${UPLOAD_SCRIPT:-$BASE_DIR/autobuild/upload_daily_autobuild_logs.sh}"
-if [ -x "$UPLOAD_SCRIPT" ]; then
-    if ! RUN_DATE="$RUN_DATE" DAILY_STATUS_FILE="$DAILY_STATUS_FILE" "$UPLOAD_SCRIPT"; then
-        echo "[WARN] Daily log upload failed"
-    fi
-else
-    echo "[WARN] Daily log upload skipped: upload script is not executable: $UPLOAD_SCRIPT"
-fi
+run_daily_log_upload
 
 GMAIL_SMTP_USER="$GMAIL_SMTP_USER" \
 GMAIL_SMTP_APP_PASSWORD="$GMAIL_SMTP_APP_PASSWORD" \
