@@ -11,7 +11,7 @@ AUTOBUILD_LOG_ROOT="${AUTOBUILD_LOG_ROOT:-$AUTOBUILD_ROOT/logs}"
 TEST_ROOT="$AUTOBUILD_LOG_ROOT/manual_test/new_models/$RUN_TS"
 TEST_STATUS_FILE="$TEST_ROOT/new_model_test_status.txt"
 TEST_MAIL_TO="${TEST_MAIL_TO:-jamesahn@gctsemi.com}"
-OS_SCRIPT_PATH="$HOME/autobuild/os_autobuild.sh"
+OS_SCRIPT_PATH="$HOME/gct-build-tools/autobuild/os_autobuild.sh"
 SHARED_CONFIG_FILE="$HOME/.config/openwrt_autobuild.env"
 
 mkdir -p "$TEST_ROOT"
