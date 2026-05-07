@@ -35,12 +35,11 @@ archive/                          Retired one-time test helpers
 
 ## Install
 
-Keep the repository under `~/gct-build-tools/autobuild` and expose the legacy run path:
+Keep the repository under `~/gct-build-tools/autobuild` and install cron from that real path:
 
 ```bash
-ln -sfn ~/gct-build-tools/autobuild ~/autobuild
 chmod +x ~/gct-build-tools/autobuild/*.sh
-~/autobuild/install_autobuild_cron.sh
+~/gct-build-tools/autobuild/install_autobuild_cron.sh
 ```
 
 Account-specific settings belong in `~/.config/*.env`, not in this repository.

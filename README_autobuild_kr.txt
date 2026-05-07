@@ -71,19 +71,12 @@ git clone <GCT_BUILD_TOOLS_REPO_URL> ~/gct-build-tools
 ~/gct-build-tools/autobuild
 
 
-2. 기존 실행 경로 연결
-----------------------
-기존처럼 ~/autobuild 경로로 실행할 수 있도록 symlink를 만듭니다.
-
-ln -sfn ~/gct-build-tools/autobuild ~/autobuild
-
-
-3. 실행 권한 확인
+2. 실행 권한 확인
 -----------------
 chmod +x ~/gct-build-tools/autobuild/*.sh
 
 
-4. 설정 파일 생성
+3. 설정 파일 생성
 -----------------
 mkdir -p ~/.config
 
@@ -97,39 +90,39 @@ OPENWRT_BRANCH=v1.00
 PKG_VERSION=0.0.0
 
 
-5. 필수 명령 확인
+4. 필수 명령 확인
 -----------------
 which git
 which python3
 which expect
 
 
-6. 먼저 수동 테스트 1회 실행
+5. 먼저 수동 테스트 1회 실행
 ----------------------------
-CONFIG_FILE=~/.config/openwrt_v1.00_autobuild.env ~/autobuild/openwrt_autobuild.sh
+CONFIG_FILE=~/.config/openwrt_v1.00_autobuild.env ~/gct-build-tools/autobuild/openwrt_autobuild.sh
 
 
-7. 수동 테스트 결과 확인
+6. 수동 테스트 결과 확인
 ------------------------
 cat ~/gct_workspace/autobuild/logs/openwrt/v1.00/latest_status.txt
 cat ~/gct_workspace/autobuild/logs/openwrt/v1.00/latest_summary.env
 
 
-8. cron 등록
+7. cron 등록
 ------------
-~/autobuild/install_openwrt_autobuild_cron.sh
+~/gct-build-tools/autobuild/install_autobuild_cron.sh
 
 
-9. cron 등록 확인
+8. cron 등록 확인
 -----------------
 crontab -l
 
 정상 등록되면 아래와 비슷한 형식의 줄이 보입니다.
 
-0 0 * * * CONFIG_FILE=/home/<user>/.config/openwrt_v1.00_autobuild.env /bin/bash -lc '/home/<user>/autobuild/openwrt_autobuild.sh >> "/home/<user>/gct_workspace/autobuild/logs/openwrt/v1.00/cron_runner.log" 2>&1' # OPENWRT_AUTOBUILD_V100
+0 0 * * * CONFIG_FILE=/home/<user>/.config/openwrt_v1.00_autobuild.env /bin/bash -lc '/home/<user>/gct-build-tools/autobuild/openwrt_autobuild.sh >> "/home/<user>/gct_workspace/autobuild/logs/openwrt/v1.00/cron_runner.log" 2>&1' # OPENWRT_AUTOBUILD_V100
 
 
-10. 야간 빌드 결과 확인
+9. 야간 빌드 결과 확인
 -----------------------
 cat ~/gct_workspace/autobuild/logs/openwrt/v1.00/latest_status.txt
 cat ~/gct_workspace/autobuild/logs/openwrt/v1.00/latest_summary.env
@@ -194,7 +187,6 @@ ps -ef | egrep 'openwrt_autobuild.sh|gct_workspace/autobuild/repos/openwrt/build
 
 3. autobuild 관련 파일/디렉터리 삭제
 ------------------------------------
-rm -f ~/autobuild
 rm -f ~/.config/openwrt_v1.00_autobuild.env
 rm -rf ~/gct_workspace/autobuild/repos/openwrt/builds/v1.00
 rm -rf ~/gct_workspace/autobuild/repos/openwrt/deps

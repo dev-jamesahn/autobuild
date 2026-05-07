@@ -70,19 +70,12 @@ If the files already exist locally, keep this directory layout:
 ~/gct-build-tools/autobuild
 
 
-2. Link the legacy run path
----------------------------
-Create a symlink so existing commands can continue to use ~/autobuild.
-
-ln -sfn ~/gct-build-tools/autobuild ~/autobuild
-
-
-3. Check execute permissions
+2. Check execute permissions
 ----------------------------
 chmod +x ~/gct-build-tools/autobuild/*.sh
 
 
-4. Create the config file
+3. Create the config file
 -------------------------
 mkdir -p ~/.config
 
@@ -96,39 +89,39 @@ OPENWRT_BRANCH=v1.00
 PKG_VERSION=0.0.0
 
 
-5. Check required commands
+4. Check required commands
 --------------------------
 which git
 which python3
 which expect
 
 
-6. Run one manual test first
+5. Run one manual test first
 ----------------------------
-CONFIG_FILE=~/.config/openwrt_v1.00_autobuild.env ~/autobuild/openwrt_autobuild.sh
+CONFIG_FILE=~/.config/openwrt_v1.00_autobuild.env ~/gct-build-tools/autobuild/openwrt_autobuild.sh
 
 
-7. Check the manual test result
+6. Check the manual test result
 -------------------------------
 cat ~/gct_workspace/autobuild/logs/openwrt/v1.00/latest_status.txt
 cat ~/gct_workspace/autobuild/logs/openwrt/v1.00/latest_summary.env
 
 
-8. Register the daily cron job
+7. Register the daily cron job
 ------------------------------
-~/autobuild/install_openwrt_autobuild_cron.sh
+~/gct-build-tools/autobuild/install_autobuild_cron.sh
 
 
-9. Verify cron registration
+8. Verify cron registration
 ---------------------------
 crontab -l
 
 Expected cron entry format:
 
-0 0 * * * CONFIG_FILE=/home/<user>/.config/openwrt_v1.00_autobuild.env /bin/bash -lc '/home/<user>/autobuild/openwrt_autobuild.sh >> "/home/<user>/gct_workspace/autobuild/logs/openwrt/v1.00/cron_runner.log" 2>&1' # OPENWRT_AUTOBUILD_V100
+0 0 * * * CONFIG_FILE=/home/<user>/.config/openwrt_v1.00_autobuild.env /bin/bash -lc '/home/<user>/gct-build-tools/autobuild/openwrt_autobuild.sh >> "/home/<user>/gct_workspace/autobuild/logs/openwrt/v1.00/cron_runner.log" 2>&1' # OPENWRT_AUTOBUILD_V100
 
 
-10. Check nightly build results
+9. Check nightly build results
 -------------------------------
 cat ~/gct_workspace/autobuild/logs/openwrt/v1.00/latest_status.txt
 cat ~/gct_workspace/autobuild/logs/openwrt/v1.00/latest_summary.env
@@ -192,7 +185,6 @@ If nothing is shown, continue to the next step.
 
 3. Remove autobuild files and directories
 -----------------------------------------
-rm -f ~/autobuild
 rm -f ~/.config/openwrt_v1.00_autobuild.env
 rm -rf ~/gct_workspace/autobuild/repos/openwrt/builds/v1.00
 rm -rf ~/gct_workspace/autobuild/repos/openwrt/deps
