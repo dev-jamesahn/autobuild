@@ -251,6 +251,28 @@ def extract_value(lines, prefix):
     return ""
 
 
+def extract_indented_block(lines, header):
+    block = []
+    in_block = False
+
+    for line in lines:
+        if line.startswith(header):
+            in_block = True
+            continue
+
+        if not in_block:
+            continue
+
+        if line.startswith("  "):
+            block.append(line.strip())
+            continue
+
+        if line.strip():
+            break
+
+    return block
+
+
 def safe_name(value):
     safe = "".join(ch if ch.isalnum() or ch in "._-" else "_" for ch in value)
     safe = safe.strip("_")
@@ -334,7 +356,7 @@ for section in sections:
     failure_analysis = extract_value(lines, "Failure analysis")
     log_path = display_upload_path(section["name"], item_name, "Log")
     artifact_path = display_upload_path(section["name"], item_name, "Image") if result == "SUCCESS" else ""
-    git_subject = extract_value(lines, "  subject")
+    git_lines = extract_indented_block(lines, "Git log")
     status_color = "#177245" if result == "SUCCESS" else "#b42318" if result == "FAIL" else "#475467"
     status_bg = "#ecfdf3" if result == "SUCCESS" else "#fef3f2" if result == "FAIL" else "#f2f4f7"
 
@@ -349,8 +371,14 @@ for section in sections:
 
     if duration:
         card_lines.append(f"<div><strong>Duration:</strong> {escape(duration)}</div>")
-    if git_subject:
-        card_lines.append(f"<div><strong>Last commit:</strong> {escape(git_subject)}</div>")
+    if git_lines:
+        git_block = "\n".join(escape(line) for line in git_lines)
+        card_lines.append(
+            "<div><strong>Last commit:</strong></div>"
+            "<pre style='margin:4px 0 0 18px;padding:8px 10px;background:#f8fafc;border:1px solid #e4e7ec;border-radius:6px;"
+            "font-family:Consolas,Menlo,monospace;font-size:12px;line-height:1.45;color:#344054;white-space:pre-wrap;'>"
+            f"{git_block}</pre>"
+        )
     if fail_reason:
         card_lines.append(f"<div><strong>Fail reason:</strong> {escape(fail_reason)}</div>")
     if failure_analysis:
