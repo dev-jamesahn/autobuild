@@ -260,6 +260,18 @@ def display_log_path(log_path):
     return log_path
 
 
+def safe_name(value):
+    safe = "".join(ch if ch.isalnum() or ch in "._-" else "_" for ch in value)
+    safe = safe.strip("_")
+    return safe or "unknown"
+
+
+def display_artifact_path(target_name, result):
+    if result != "SUCCESS" or not samba_unc_root or not run_date:
+        return ""
+    return samba_unc_root + "\\" + run_date + "\\artifacts\\" + safe_name(target_name)
+
+
 sections = parse_sections(body)
 model_groups = []
 model_index = {}
@@ -280,16 +292,37 @@ def add_model_card(model_name, item_html):
         model_groups.append(model_index[model_name])
     model_index[model_name]["items"].append(item_html)
 
+
+def model_sort_key(group):
+    order = {
+        "GDM7275X": 0,
+        "GDM7243A": 1,
+        "GDM7243ST": 2,
+        "GDM7243i": 3,
+    }
+    return order.get(group["name"], 99), group["name"]
+
+
+def item_sort_key(item):
+    order = {
+        "OpenWrt v1.00": 0,
+        "OpenWrt master": 1,
+        "Linuxos master": 2,
+        "Zephyros": 3,
+    }
+    return order.get(item["name"], 99), item["name"]
+
 for section in sections:
     lines = section["lines"]
     model_name, item_name = split_model_item(section["name"])
+    display_item_name = item_name.replace("OpenWrt", "OpenWRT", 1)
     result = extract_value(lines, "Result")
     duration = extract_value(lines, "Duration")
-    stage = extract_value(lines, "Current stage")
     fail_reason = extract_value(lines, "Fail reason")
     failure_analysis = extract_value(lines, "Failure analysis")
     log_path = extract_value(lines, "Log path")
     display_path = display_log_path(log_path)
+    artifact_path = display_artifact_path(section["name"], result)
     git_subject = extract_value(lines, "  subject")
     status_color = "#177245" if result == "SUCCESS" else "#b42318" if result == "FAIL" else "#475467"
     status_bg = "#ecfdf3" if result == "SUCCESS" else "#fef3f2" if result == "FAIL" else "#f2f4f7"
@@ -297,7 +330,7 @@ for section in sections:
     card_lines = [
         "<div style='border:1px solid #e4e7ec;border-radius:8px;padding:14px 16px;background:#ffffff;margin:10px 0 0 18px;'>",
         "<div style='display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;'>",
-        f"<div style='font-size:15px;font-weight:700;color:#101828;'>- {escape(item_name)}</div>",
+        f"<div style='font-size:15px;font-weight:700;color:#101828;'>- {escape(display_item_name)}</div>",
         f"<div style='padding:4px 10px;border-radius:999px;background:{status_bg};color:{status_color};font-size:12px;font-weight:700;white-space:nowrap;'>{escape(result or 'UNKNOWN')}</div>",
         "</div>",
         "<div style='font-size:13px;line-height:1.6;color:#344054;'>",
@@ -305,8 +338,6 @@ for section in sections:
 
     if duration:
         card_lines.append(f"<div><strong>Duration:</strong> {escape(duration)}</div>")
-    if stage:
-        card_lines.append(f"<div><strong>Stage:</strong> {escape(stage)}</div>")
     if git_subject:
         card_lines.append(f"<div><strong>Last commit:</strong> {escape(git_subject)}</div>")
     if fail_reason:
@@ -315,12 +346,18 @@ for section in sections:
         card_lines.append(f"<div><strong>Failure analysis:</strong> {escape(failure_analysis)}</div>")
     if display_path:
         card_lines.append(f"<div><strong>Log path:</strong> <span style='font-family:monospace;color:#0b63ce;'>{escape(display_path)}</span></div>")
+    if artifact_path:
+        card_lines.append(f"<div><strong>Artifact path:</strong> <span style='font-family:monospace;color:#0b63ce;'>{escape(artifact_path)}</span></div>")
 
     card_lines.append("</div></div>")
-    add_model_card(model_name, "".join(card_lines))
+    if model_name not in model_index:
+        model_index[model_name] = {"name": model_name, "items": []}
+        model_groups.append(model_index[model_name])
+    model_index[model_name]["items"].append({"name": item_name, "html": "".join(card_lines)})
 
 model_cards = []
-for group in model_groups:
+for group in sorted(model_groups, key=model_sort_key):
+    group["items"].sort(key=item_sort_key)
     item_count = len(group["items"])
     model_cards.append(
         "<div style='border:1px solid #d0d5dd;border-radius:10px;background:#f8fafc;margin-bottom:14px;padding:16px;'>"
@@ -329,7 +366,7 @@ for group in model_groups:
         f"<div style='font-size:12px;font-weight:700;color:#475467;background:#ffffff;border:1px solid #e4e7ec;border-radius:999px;padding:4px 10px;'>{item_count} item{'s' if item_count != 1 else ''}</div>"
         "</div>"
         "<div style='border-left:2px solid #d0d5dd;margin-top:12px;'>"
-        + "".join(group["items"])
+        + "".join(item["html"] for item in group["items"])
         + "</div></div>"
     )
 
