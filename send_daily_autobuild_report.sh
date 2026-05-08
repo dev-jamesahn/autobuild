@@ -47,7 +47,35 @@ fi
 mkdir -p "$AUTOBUILD_TMP_ROOT" "$AUTOBUILD_STATE_ROOT"
 
 cleanup_lock() {
+    rm -f "$LOCK_DIR/pid" 2>/dev/null || true
     rmdir "$LOCK_DIR" 2>/dev/null || true
+}
+
+acquire_lock() {
+    local lock_pid=""
+
+    if mkdir "$LOCK_DIR" 2>/dev/null; then
+        printf '%s\n' "$$" > "$LOCK_DIR/pid"
+        return 0
+    fi
+
+    if [ -f "$LOCK_DIR/pid" ]; then
+        lock_pid="$(cat "$LOCK_DIR/pid" 2>/dev/null || true)"
+    fi
+
+    if [ -n "$lock_pid" ] && kill -0 "$lock_pid" 2>/dev/null; then
+        return 1
+    fi
+
+    rm -f "$LOCK_DIR/pid" 2>/dev/null || true
+    rmdir "$LOCK_DIR" 2>/dev/null || true
+
+    if mkdir "$LOCK_DIR" 2>/dev/null; then
+        printf '%s\n' "$$" > "$LOCK_DIR/pid"
+        return 0
+    fi
+
+    return 1
 }
 
 summary_ready_for_today() {
@@ -107,7 +135,7 @@ if [ -f "$SENT_FLAG_FILE" ]; then
     exit 0
 fi
 
-if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+if ! acquire_lock; then
     echo "[INFO] Daily mail notifier skipped: another notifier run is in progress"
     exit 0
 fi
