@@ -79,6 +79,9 @@ if [ -z "$ARTIFACT_ROOT" ]; then
 fi
 if [ -z "$ARTIFACT_PATHS" ]; then
     case "$OS_PROJECT_NAME" in
+        Linuxos)
+            ARTIFACT_PATHS="images/*"
+            ;;
         uTKernel)
             ARTIFACT_PATHS="tk.gz disa"
             ;;

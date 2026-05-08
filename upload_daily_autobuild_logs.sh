@@ -146,6 +146,8 @@ copy_artifacts_for_log_dir() {
     if [ -z "$artifact_paths" ]; then
         if [ -n "$openwrt_branch" ]; then
             artifact_paths="bin/targets/gdm7275x/generic/owrt*.*"
+        elif [ "$os_project_name" = "Linuxos" ]; then
+            artifact_paths="images/*"
         elif [ "$os_project_name" = "uTKernel" ]; then
             artifact_paths="tk.gz disa"
         elif [ "$os_project_name" = "zephyr-v2.3" ] && [ -n "$os_build_variant" ]; then
