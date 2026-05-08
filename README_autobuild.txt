@@ -9,7 +9,7 @@ The daily autobuild is organized by model lineup:
   - OpenWrt v1.00
   - OpenWrt master
   - Zephyros
-  - Linuxos master build
+  - Linuxos master
 - GDM7243A
   - uTKernel - gdm7243a_no_l2
 - GDM7243ST

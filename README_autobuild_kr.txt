@@ -9,7 +9,7 @@ autobuild는 모델 라인업별로 아래 항목을 매일 실행합니다.
   - OpenWrt v1.00
   - OpenWrt master
   - Zephyros
-  - Linuxos master build
+  - Linuxos master
 - GDM7243A
   - uTKernel - gdm7243a_no_l2
 - GDM7243ST

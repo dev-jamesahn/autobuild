@@ -9,7 +9,7 @@ GDM7275X
 - OpenWrt v1.00
 - OpenWrt master
 - Zephyros
-- Linuxos master build
+- Linuxos master
 
 GDM7243A
 - uTKernel - gdm7243a_no_l2
