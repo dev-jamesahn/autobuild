@@ -45,10 +45,13 @@ chmod +x ~/gct-build-tools/autobuild/*.sh
 
 Account-specific settings belong in `~/.config/*.env`, not in this repository.
 
-Daily build logs are written under `~/gct_workspace/autobuild/logs` and uploaded to:
+Daily build logs are written under `~/gct_workspace/autobuild/logs`. Logs and
+selected artifacts from successful builds are uploaded to:
 
 ```text
 K:\ENG\ENG05\CS\Test Log\Daily_build\YYYYMMDD
 ```
+
+Artifacts are placed below the uploaded date folder under `artifacts/<target>/`.
 
 See `README_autobuild_kr.txt` for the Korean operation guide.

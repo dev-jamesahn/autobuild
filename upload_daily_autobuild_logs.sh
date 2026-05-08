@@ -60,6 +60,134 @@ cp "$DAILY_STATUS_FILE" "$PACKAGE_DIR/"
     echo "[uploaded_log_dirs]"
 } > "$MANIFEST_FILE"
 
+safe_name() {
+    local value=$1
+    value="${value//[^A-Za-z0-9._-]/_}"
+    value="${value##_}"
+    value="${value%%_}"
+    printf '%s' "${value:-unknown}"
+}
+
+copy_artifact_path() {
+    local artifact_path=$1
+    local artifact_root=$2
+    local target_dir=$3
+    local rel_path
+    local dest_path
+
+    if [ -d "$artifact_path" ]; then
+        if [[ "$artifact_path" == "$artifact_root"/* ]]; then
+            rel_path="${artifact_path#"$artifact_root"/}"
+        else
+            rel_path="external/${artifact_path#/}"
+        fi
+        mkdir -p "$target_dir/$rel_path"
+        rsync -a "$artifact_path/" "$target_dir/$rel_path/"
+        printf '  %s -> %s/\n' "$artifact_path" "$rel_path" >> "$MANIFEST_FILE"
+        return
+    fi
+
+    if [ ! -f "$artifact_path" ]; then
+        return
+    fi
+
+    if [[ "$artifact_path" == "$artifact_root"/* ]]; then
+        rel_path="${artifact_path#"$artifact_root"/}"
+    else
+        rel_path="external/${artifact_path#/}"
+    fi
+
+    dest_path="$target_dir/$rel_path"
+    mkdir -p "$(dirname "$dest_path")"
+    rsync -a "$artifact_path" "$dest_path"
+    printf '  %s -> %s\n' "$artifact_path" "$rel_path" >> "$MANIFEST_FILE"
+}
+
+copy_artifacts_for_log_dir() {
+    local log_dir=$1
+    local summary_file="$log_dir/summary.env"
+    local target_name=""
+    local build_result=""
+    local artifact_root=""
+    local artifact_paths=""
+    local main_repo_dir=""
+    local os_project_name=""
+    local os_build_variant=""
+    local zephyros_config_name=""
+    local openwrt_branch=""
+    local safe_target
+    local artifact_target_dir
+    local artifact_spec
+    local artifact_path
+    local matched
+
+    if [ ! -f "$summary_file" ]; then
+        return
+    fi
+
+    unset TARGET_NAME BUILD_RESULT ARTIFACT_ROOT ARTIFACT_PATHS MAIN_REPO_DIR
+    unset OS_PROJECT_NAME OS_BUILD_VARIANT ZEPHYROS_CONFIG_NAME OPENWRT_BRANCH
+    # shellcheck disable=SC1090
+    . "$summary_file"
+
+    target_name="${TARGET_NAME:-$(basename "$log_dir")}"
+    build_result="${BUILD_RESULT:-}"
+    artifact_root="${ARTIFACT_ROOT:-}"
+    artifact_paths="${ARTIFACT_PATHS:-}"
+    main_repo_dir="${MAIN_REPO_DIR:-}"
+    os_project_name="${OS_PROJECT_NAME:-}"
+    os_build_variant="${OS_BUILD_VARIANT:-}"
+    zephyros_config_name="${ZEPHYROS_CONFIG_NAME:-}"
+    openwrt_branch="${OPENWRT_BRANCH:-}"
+
+    if [ -z "$artifact_root" ] && [ -n "$main_repo_dir" ]; then
+        artifact_root="$main_repo_dir"
+    fi
+    if [ -z "$artifact_paths" ]; then
+        if [ -n "$openwrt_branch" ]; then
+            artifact_paths="bin/targets/gdm7275x/generic/owrt*.*"
+        elif [ "$os_project_name" = "uTKernel" ]; then
+            artifact_paths="tk.gz disa"
+        elif [ "$os_project_name" = "zephyr-v2.3" ] && [ -n "$os_build_variant" ]; then
+            artifact_paths="images/build/$os_build_variant/zephyr/zephyr.bin images/build/$os_build_variant/zephyr/zephyr.elf"
+        elif [ -n "$zephyros_config_name" ]; then
+            artifact_paths="images/build/$zephyros_config_name/zephyr/tk.gz images/build/$zephyros_config_name/zephyr/zephyr.elf"
+        fi
+    fi
+
+    if [ "$build_result" != "SUCCESS" ] || [ -z "$artifact_root" ] || [ -z "$artifact_paths" ]; then
+        return
+    fi
+
+    safe_target="$(safe_name "$target_name")"
+    artifact_target_dir="$PACKAGE_DIR/artifacts/$safe_target"
+    mkdir -p "$artifact_target_dir"
+
+    {
+        echo
+        echo "[$target_name artifacts]"
+        echo "artifact_root=$artifact_root"
+    } >> "$MANIFEST_FILE"
+
+    for artifact_spec in $artifact_paths; do
+        matched=0
+        while IFS= read -r artifact_path; do
+            [ -n "$artifact_path" ] || continue
+            matched=1
+            copy_artifact_path "$artifact_path" "$artifact_root" "$artifact_target_dir"
+        done < <(compgen -G "$artifact_root/$artifact_spec" || true)
+
+        if [ "$matched" -eq 0 ] && [ -e "$artifact_root/$artifact_spec" ]; then
+            copy_artifact_path "$artifact_root/$artifact_spec" "$artifact_root" "$artifact_target_dir"
+            matched=1
+        fi
+
+        if [ "$matched" -eq 0 ]; then
+            printf '  [missing] %s\n' "$artifact_root/$artifact_spec" >> "$MANIFEST_FILE"
+        fi
+    done
+}
+
 while IFS= read -r log_path; do
     [ -n "$log_path" ] || continue
 
@@ -81,6 +209,7 @@ while IFS= read -r log_path; do
     mkdir -p "$PACKAGE_DIR/$(dirname "$rel_dir")"
     rsync -a "$log_dir/" "$PACKAGE_DIR/$rel_dir/"
     echo "$log_dir -> $rel_dir" >> "$MANIFEST_FILE"
+    copy_artifacts_for_log_dir "$log_dir"
 done < <(awk -F: '/^Log path[[:space:]]*:/ {sub(/^[[:space:]]+/, "", $2); print $2}' "$DAILY_STATUS_FILE")
 
 copy_to_local_dir() {

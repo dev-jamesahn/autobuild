@@ -27,6 +27,8 @@ OS_BUILD_CMD="${OS_BUILD_CMD:-make}"
 OS_REQUIRED_COMMANDS="${OS_REQUIRED_COMMANDS:-git}"
 OS_PATH_PREPEND="${OS_PATH_PREPEND:-}"
 OS_LD_LIBRARY_PATH_PREPEND="${OS_LD_LIBRARY_PATH_PREPEND:-}"
+ARTIFACT_ROOT="${ARTIFACT_ROOT:-}"
+ARTIFACT_PATHS="${ARTIFACT_PATHS:-}"
 
 if [ -n "$OS_PATH_PREPEND" ]; then
     PATH="$OS_PATH_PREPEND:$PATH"
@@ -71,6 +73,20 @@ LATEST_LINK="$LOG_ROOT/latest"
 LATEST_STATUS_FILE="$LOG_ROOT/latest_status.txt"
 LATEST_SUMMARY_FILE="$LOG_ROOT/latest_summary.env"
 DAILY_STATUS_FILE="${DAILY_STATUS_FILE:-$AUTOBUILD_STATE_ROOT/daily_autobuild_status_${RUN_DATE}.txt}"
+
+if [ -z "$ARTIFACT_ROOT" ]; then
+    ARTIFACT_ROOT="$REPO_DIR"
+fi
+if [ -z "$ARTIFACT_PATHS" ]; then
+    case "$OS_PROJECT_NAME" in
+        uTKernel)
+            ARTIFACT_PATHS="tk.gz disa"
+            ;;
+        zephyr-v2.3)
+            ARTIFACT_PATHS="images/build/$OS_BUILD_VARIANT/zephyr/zephyr.bin images/build/$OS_BUILD_VARIANT/zephyr/zephyr.elf"
+            ;;
+    esac
+fi
 
 mkdir -p "$WORK_DIR" "$RUN_DIR" "$AUTOBUILD_STATE_ROOT"
 touch "$BUILD_LOG"
@@ -319,6 +335,8 @@ finalize() {
         echo "VERBOSE_LOG=$VERBOSE_LOG"
         echo "HASH_LOG=$HASH_LOG"
         echo "FAILURE_REPORT=$FAILURE_REPORT"
+        echo "ARTIFACT_ROOT=$(printf '%q' "$ARTIFACT_ROOT")"
+        echo "ARTIFACT_PATHS=$(printf '%q' "$ARTIFACT_PATHS")"
         echo "FAIL_REASON=$(printf '%q' "$FAIL_REASON")"
         echo "FAILURE_ANALYSIS=$(printf '%q' "$FAILURE_ANALYSIS")"
         echo "MAIN_REPO_URL=$(printf '%q' "$OS_REPO_URL")"
@@ -341,6 +359,10 @@ finalize() {
         echo "Verbose log  : $VERBOSE_LOG"
         echo "Hash log     : $HASH_LOG"
         echo "Failure rpt  : $FAILURE_REPORT"
+        if [ -n "$ARTIFACT_PATHS" ]; then
+            echo "Artifact root: $ARTIFACT_ROOT"
+            echo "Artifacts    : $ARTIFACT_PATHS"
+        fi
         if [ -n "$FAIL_REASON" ]; then
             echo "Fail reason  : $FAIL_REASON"
         fi

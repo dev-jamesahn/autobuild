@@ -55,6 +55,8 @@ LATEST_LINK="$LOG_ROOT/latest"
 LATEST_STATUS_FILE="$LOG_ROOT/latest_status.txt"
 LATEST_SUMMARY_FILE="$LOG_ROOT/latest_summary.env"
 DAILY_STATUS_FILE="${DAILY_STATUS_FILE:-$AUTOBUILD_STATE_ROOT/daily_autobuild_status_${RUN_DATE}.txt}"
+ARTIFACT_ROOT="${ARTIFACT_ROOT:-$OPENWRT_DIR}"
+ARTIFACT_PATHS="${ARTIFACT_PATHS:-bin/targets/gdm7275x/generic/owrt*.*}"
 mkdir -p "$WORK_DIR" "$CLONE_ROOT" "$RUN_DIR" "$AUTOBUILD_STATE_ROOT"
 touch "$BUILD_LOG"
 exec > >(tee -a "$BUILD_LOG") 2>&1
@@ -627,6 +629,8 @@ finalize() {
         echo "VERBOSE_LOG=$VERBOSE_LOG"
         echo "HASH_LOG=$HASH_LOG"
         echo "FAILURE_REPORT=$FAILURE_REPORT"
+        echo "ARTIFACT_ROOT=$(printf '%q' "$ARTIFACT_ROOT")"
+        echo "ARTIFACT_PATHS=$(printf '%q' "$ARTIFACT_PATHS")"
         echo "FAIL_REASON=$(printf '%q' "$FAIL_REASON")"
         echo "FAILURE_ANALYSIS=$(printf '%q' "$FAILURE_ANALYSIS")"
         echo "MAIN_REPO_URL=$(printf '%q' "$MAIN_REPO_URL")"
@@ -652,6 +656,10 @@ finalize() {
         echo "Verbose log  : $VERBOSE_LOG"
         echo "Hash log     : $HASH_LOG"
         echo "Failure rpt  : $FAILURE_REPORT"
+        if [ -n "$ARTIFACT_PATHS" ]; then
+            echo "Artifact root: $ARTIFACT_ROOT"
+            echo "Artifacts    : $ARTIFACT_PATHS"
+        fi
         if [ -n "$FAIL_REASON" ]; then
             echo "Fail reason  : $FAIL_REASON"
         fi

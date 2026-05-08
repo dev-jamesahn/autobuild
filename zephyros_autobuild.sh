@@ -20,6 +20,8 @@ MODEL_LINEUP="${MODEL_LINEUP:-GDM7275X}"
 ZEPHYROS_CONFIG_SELECT="${ZEPHYROS_CONFIG_SELECT:-7}"
 ZEPHYROS_CONFIG_NAME="${ZEPHYROS_CONFIG_NAME:-gdm7259x_nsa}"
 ZEPHYROS_REPO_URL="${ZEPHYROS_REPO_URL:-https://jamesahn@vcs.gctsemi.com/OS/Zephyros}"
+ARTIFACT_ROOT="${ARTIFACT_ROOT:-}"
+ARTIFACT_PATHS="${ARTIFACT_PATHS:-}"
 WORK_ROOT="${GCT_WORK_ROOT:-${WORK_ROOT:-$BASE_DIR/gct_workspace}}"
 AUTOBUILD_ROOT="${AUTOBUILD_ROOT:-$WORK_ROOT/autobuild}"
 AUTOBUILD_REPO_ROOT="${AUTOBUILD_REPO_ROOT:-$AUTOBUILD_ROOT/repos}"
@@ -41,6 +43,12 @@ LATEST_LINK="$LOG_ROOT/latest"
 LATEST_STATUS_FILE="$LOG_ROOT/latest_status.txt"
 LATEST_SUMMARY_FILE="$LOG_ROOT/latest_summary.env"
 DAILY_STATUS_FILE="${DAILY_STATUS_FILE:-$AUTOBUILD_STATE_ROOT/daily_autobuild_status_${RUN_DATE}.txt}"
+if [ -z "$ARTIFACT_ROOT" ]; then
+    ARTIFACT_ROOT="$REPO_DIR"
+fi
+if [ -z "$ARTIFACT_PATHS" ]; then
+    ARTIFACT_PATHS="images/build/$ZEPHYROS_CONFIG_NAME/zephyr/tk.gz images/build/$ZEPHYROS_CONFIG_NAME/zephyr/zephyr.elf"
+fi
 mkdir -p "$WORK_DIR" "$RUN_DIR" "$AUTOBUILD_STATE_ROOT"
 touch "$BUILD_LOG"
 exec > >(tee -a "$BUILD_LOG") 2>&1
@@ -479,6 +487,8 @@ finalize() {
         echo "VERBOSE_LOG=$VERBOSE_LOG"
         echo "HASH_LOG=$HASH_LOG"
         echo "FAILURE_REPORT=$FAILURE_REPORT"
+        echo "ARTIFACT_ROOT=$(printf '%q' "$ARTIFACT_ROOT")"
+        echo "ARTIFACT_PATHS=$(printf '%q' "$ARTIFACT_PATHS")"
         echo "FAIL_REASON=$(printf '%q' "$FAIL_REASON")"
         echo "FAILURE_ANALYSIS=$(printf '%q' "$FAILURE_ANALYSIS")"
         echo "MAIN_REPO_URL=$(printf '%q' "$MAIN_REPO_URL")"
@@ -501,6 +511,10 @@ finalize() {
         echo "Verbose log  : $VERBOSE_LOG"
         echo "Hash log     : $HASH_LOG"
         echo "Failure rpt  : $FAILURE_REPORT"
+        if [ -n "$ARTIFACT_PATHS" ]; then
+            echo "Artifact root: $ARTIFACT_ROOT"
+            echo "Artifacts    : $ARTIFACT_PATHS"
+        fi
         if [ -n "$FAIL_REASON" ]; then
             echo "Fail reason  : $FAIL_REASON"
         fi

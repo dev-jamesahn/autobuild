@@ -30,7 +30,9 @@ Main scripts:
 Daily report mail is handled by the central notifier. Individual build scripts
 do not send daily mail directly.
 
-Daily build logs are uploaded to the mapped Windows drive path:
+Daily build logs and selected artifacts from successful builds are uploaded to
+the mapped Windows drive path. Artifacts are grouped under the artifacts
+subdirectory by build target.
 
 K:\ENG\ENG05\CS\Test Log\Daily_build\YYYYMMDD
 

@@ -30,7 +30,9 @@ autobuild는 모델 라인업별로 아래 항목을 매일 실행합니다.
 Daily report mail은 중앙 notifier가 담당합니다. 개별 build script에서
 메일을 직접 발송하지 않습니다.
 
-Daily build log는 아래 Samba 네트워크 드라이브 기준으로 날짜별 업로드됩니다.
+Daily build log와 성공한 빌드의 지정 산출물은 아래 Samba 네트워크 드라이브
+기준으로 날짜별 업로드됩니다. 산출물은 날짜 폴더 아래 artifacts 하위트리에
+모델/빌드 항목별로 구분됩니다.
 
 K:\ENG\ENG05\CS\Test Log\Daily_build\YYYYMMDD
 
