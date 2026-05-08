@@ -68,22 +68,62 @@ safe_name() {
     printf '%s' "${value:-unknown}"
 }
 
+upload_dir_name() {
+    local target_name=$1
+    local openwrt_branch=$2
+    local os_project_name=$3
+    local os_build_variant=$4
+    local zephyros_config_name=$5
+    local lowered
+
+    if [ -n "$openwrt_branch" ]; then
+        printf 'openwrt_%s' "$openwrt_branch"
+        return
+    fi
+
+    if [ -n "$zephyros_config_name" ] || [ "$target_name" = "GDM7275X Zephyros" ]; then
+        printf 'zephyros'
+        return
+    fi
+
+    case "$os_project_name" in
+        Linuxos)
+            printf 'linuxos'
+            return
+            ;;
+        uTKernel)
+            lowered="$(printf '%s' "$target_name" | tr '[:upper:]' '[:lower:]')"
+            case "$lowered" in
+                *gdm7243st*) printf 'gdm7243st_utkernel' ;;
+                *gdm7243a*) printf 'gdm7243a_utkernel' ;;
+                *) safe_name "$target_name" ;;
+            esac
+            return
+            ;;
+        zephyr-v2.3)
+            lowered="$(printf '%s' "$target_name" | tr '[:upper:]' '[:lower:]')"
+            case "$lowered" in
+                *gdm7243i*) printf 'gdm7243i_zephyr_v2.3' ;;
+                *) safe_name "$target_name" ;;
+            esac
+            return
+            ;;
+    esac
+
+    safe_name "$target_name"
+}
+
 copy_artifact_path() {
     local artifact_path=$1
-    local artifact_root=$2
-    local target_dir=$3
-    local rel_path
+    local target_dir=$2
     local dest_path
 
     if [ -d "$artifact_path" ]; then
-        if [[ "$artifact_path" == "$artifact_root"/* ]]; then
-            rel_path="${artifact_path#"$artifact_root"/}"
-        else
-            rel_path="external/${artifact_path#/}"
-        fi
-        mkdir -p "$target_dir/$rel_path"
-        rsync -a "$artifact_path/" "$target_dir/$rel_path/"
-        printf '  %s -> %s/\n' "$artifact_path" "$rel_path" >> "$MANIFEST_FILE"
+        find "$artifact_path" -type f | sort | while IFS= read -r nested_file; do
+            dest_path="$target_dir/$(basename "$nested_file")"
+            rsync -a "$nested_file" "$dest_path"
+            printf '  %s -> Image/%s\n' "$nested_file" "$(basename "$nested_file")" >> "$MANIFEST_FILE"
+        done
         return
     fi
 
@@ -91,16 +131,9 @@ copy_artifact_path() {
         return
     fi
 
-    if [[ "$artifact_path" == "$artifact_root"/* ]]; then
-        rel_path="${artifact_path#"$artifact_root"/}"
-    else
-        rel_path="external/${artifact_path#/}"
-    fi
-
-    dest_path="$target_dir/$rel_path"
-    mkdir -p "$(dirname "$dest_path")"
+    dest_path="$target_dir/$(basename "$artifact_path")"
     rsync -a "$artifact_path" "$dest_path"
-    printf '  %s -> %s\n' "$artifact_path" "$rel_path" >> "$MANIFEST_FILE"
+    printf '  %s -> Image/%s\n' "$artifact_path" "$(basename "$artifact_path")" >> "$MANIFEST_FILE"
 }
 
 copy_artifacts_for_log_dir() {
@@ -115,7 +148,6 @@ copy_artifacts_for_log_dir() {
     local os_build_variant=""
     local zephyros_config_name=""
     local openwrt_branch=""
-    local safe_target
     local artifact_target_dir
     local artifact_spec
     local artifact_path
@@ -161,8 +193,7 @@ copy_artifacts_for_log_dir() {
         return
     fi
 
-    safe_target="$(safe_name "$target_name")"
-    artifact_target_dir="$PACKAGE_DIR/artifacts/$safe_target"
+    artifact_target_dir="$PACKAGE_DIR/$(upload_dir_name "$target_name" "$openwrt_branch" "$os_project_name" "$os_build_variant" "$zephyros_config_name")/Image"
     mkdir -p "$artifact_target_dir"
 
     {
@@ -176,11 +207,11 @@ copy_artifacts_for_log_dir() {
         while IFS= read -r artifact_path; do
             [ -n "$artifact_path" ] || continue
             matched=1
-            copy_artifact_path "$artifact_path" "$artifact_root" "$artifact_target_dir"
+            copy_artifact_path "$artifact_path" "$artifact_target_dir"
         done < <(compgen -G "$artifact_root/$artifact_spec" || true)
 
         if [ "$matched" -eq 0 ] && [ -e "$artifact_root/$artifact_spec" ]; then
-            copy_artifact_path "$artifact_root/$artifact_spec" "$artifact_root" "$artifact_target_dir"
+            copy_artifact_path "$artifact_root/$artifact_spec" "$artifact_target_dir"
             matched=1
         fi
 
@@ -199,16 +230,26 @@ while IFS= read -r log_path; do
         continue
     fi
 
-    case "$log_dir" in
-        "$AUTOBUILD_LOG_ROOT"/*)
-            rel_dir="${log_dir#"$AUTOBUILD_LOG_ROOT"/}"
-            ;;
-        *)
-            rel_dir="external/${log_dir#/}"
-            ;;
-    esac
+    summary_file="$log_dir/summary.env"
+    target_name="$(basename "$log_dir")"
+    openwrt_branch=""
+    os_project_name=""
+    os_build_variant=""
+    zephyros_config_name=""
 
-    mkdir -p "$PACKAGE_DIR/$(dirname "$rel_dir")"
+    if [ -f "$summary_file" ]; then
+        unset TARGET_NAME OPENWRT_BRANCH OS_PROJECT_NAME OS_BUILD_VARIANT ZEPHYROS_CONFIG_NAME
+        # shellcheck disable=SC1090
+        . "$summary_file"
+        target_name="${TARGET_NAME:-$target_name}"
+        openwrt_branch="${OPENWRT_BRANCH:-}"
+        os_project_name="${OS_PROJECT_NAME:-}"
+        os_build_variant="${OS_BUILD_VARIANT:-}"
+        zephyros_config_name="${ZEPHYROS_CONFIG_NAME:-}"
+    fi
+
+    rel_dir="$(upload_dir_name "$target_name" "$openwrt_branch" "$os_project_name" "$os_build_variant" "$zephyros_config_name")/Log"
+    mkdir -p "$PACKAGE_DIR/$rel_dir"
     rsync -a "$log_dir/" "$PACKAGE_DIR/$rel_dir/"
     echo "$log_dir -> $rel_dir" >> "$MANIFEST_FILE"
     copy_artifacts_for_log_dir "$log_dir"
@@ -244,6 +285,37 @@ copy_to_gio_uri() {
         echo "[WARN] Daily log upload skipped: cannot create date folder: $target_uri/$RUN_DATE"
         return 0
     fi
+
+    remove_gio_uri_tree() {
+        local uri=$1
+        local child
+
+        if ! gio info "$uri" >/dev/null 2>&1; then
+            return
+        fi
+
+        if gio remove "$uri" >/dev/null 2>&1; then
+            return
+        fi
+
+        while IFS= read -r child; do
+            [ -n "$child" ] || continue
+            child="${child%/}"
+            remove_gio_uri_tree "$uri/$child"
+        done < <(gio list "$uri" 2>/dev/null || true)
+
+        gio remove "$uri" >/dev/null 2>&1 || true
+    }
+
+    for rel_path in artifacts openwrt uTKernel zephyr_v2_3; do
+        remove_gio_uri_tree "$target_uri/$RUN_DATE/$rel_path"
+    done
+    while IFS= read -r dir_path; do
+        [ "$dir_path" != "$PACKAGE_DIR" ] || continue
+        [ "$(dirname "$dir_path")" = "$PACKAGE_DIR" ] || continue
+        rel_path="${dir_path#"$PACKAGE_DIR"/}"
+        remove_gio_uri_tree "$target_uri/$RUN_DATE/$rel_path"
+    done < <(find "$PACKAGE_DIR" -mindepth 1 -maxdepth 1 -type d | sort)
 
     while IFS= read -r dir_path; do
         [ "$dir_path" != "$PACKAGE_DIR" ] || continue

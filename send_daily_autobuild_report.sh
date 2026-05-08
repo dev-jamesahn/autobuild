@@ -251,25 +251,37 @@ def extract_value(lines, prefix):
     return ""
 
 
-def display_log_path(log_path):
-    if samba_unc_root and run_date and autobuild_log_root:
-        local_prefix = autobuild_log_root + "/"
-        if log_path.startswith(local_prefix):
-            rel_path = log_path[len(local_prefix):].replace("/", "\\")
-            return samba_unc_root + "\\" + run_date + "\\" + rel_path
-    return log_path
-
-
 def safe_name(value):
     safe = "".join(ch if ch.isalnum() or ch in "._-" else "_" for ch in value)
     safe = safe.strip("_")
     return safe or "unknown"
 
 
-def display_artifact_path(target_name, result):
-    if result != "SUCCESS" or not samba_unc_root or not run_date:
+def upload_dir_name(section_name, item_name):
+    if item_name == "OpenWrt v1.00":
+        return "openwrt_v1.00"
+    if item_name == "OpenWrt master":
+        return "openwrt_master"
+    if item_name == "Linuxos master":
+        return "linuxos"
+    if item_name == "Zephyros":
+        return "zephyros"
+
+    lowered = section_name.lower()
+    if "gdm7243st" in lowered:
+        return "gdm7243st_utkernel"
+    if "gdm7243a" in lowered:
+        return "gdm7243a_utkernel"
+    if "gdm7243i" in lowered:
+        return "gdm7243i_zephyr_v2.3"
+
+    return safe_name(section_name)
+
+
+def display_upload_path(section_name, item_name, subdir):
+    if not samba_unc_root or not run_date:
         return ""
-    return samba_unc_root + "\\" + run_date + "\\artifacts\\" + safe_name(target_name)
+    return samba_unc_root + "\\" + run_date + "\\" + upload_dir_name(section_name, item_name) + "\\" + subdir
 
 
 sections = parse_sections(body)
@@ -320,9 +332,8 @@ for section in sections:
     duration = extract_value(lines, "Duration")
     fail_reason = extract_value(lines, "Fail reason")
     failure_analysis = extract_value(lines, "Failure analysis")
-    log_path = extract_value(lines, "Log path")
-    display_path = display_log_path(log_path)
-    artifact_path = display_artifact_path(section["name"], result)
+    log_path = display_upload_path(section["name"], item_name, "Log")
+    artifact_path = display_upload_path(section["name"], item_name, "Image") if result == "SUCCESS" else ""
     git_subject = extract_value(lines, "  subject")
     status_color = "#177245" if result == "SUCCESS" else "#b42318" if result == "FAIL" else "#475467"
     status_bg = "#ecfdf3" if result == "SUCCESS" else "#fef3f2" if result == "FAIL" else "#f2f4f7"
@@ -344,8 +355,8 @@ for section in sections:
         card_lines.append(f"<div><strong>Fail reason:</strong> {escape(fail_reason)}</div>")
     if failure_analysis:
         card_lines.append(f"<div><strong>Failure analysis:</strong> {escape(failure_analysis)}</div>")
-    if display_path:
-        card_lines.append(f"<div><strong>Log path:</strong> <span style='font-family:monospace;color:#0b63ce;'>{escape(display_path)}</span></div>")
+    if log_path:
+        card_lines.append(f"<div><strong>Log path:</strong> <span style='font-family:monospace;color:#0b63ce;'>{escape(log_path)}</span></div>")
     if artifact_path:
         card_lines.append(f"<div><strong>Artifact path:</strong> <span style='font-family:monospace;color:#0b63ce;'>{escape(artifact_path)}</span></div>")
 
