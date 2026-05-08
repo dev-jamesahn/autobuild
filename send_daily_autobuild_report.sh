@@ -18,6 +18,7 @@ LOCK_DIR="${LOCK_DIR:-$AUTOBUILD_TMP_ROOT/daily_autobuild_mail_notifier_${RUN_DA
 V100_SUMMARY_FILE="${V100_SUMMARY_FILE:-$AUTOBUILD_LOG_ROOT/openwrt/v1.00/latest_summary.env}"
 MASTER_SUMMARY_FILE="${MASTER_SUMMARY_FILE:-$AUTOBUILD_LOG_ROOT/openwrt/master/latest_summary.env}"
 ZEPHYROS_SUMMARY_FILE="${ZEPHYROS_SUMMARY_FILE:-$AUTOBUILD_LOG_ROOT/zephyros/latest_summary.env}"
+GDM7275X_LINUXOS_SUMMARY_FILE="${GDM7275X_LINUXOS_SUMMARY_FILE:-$AUTOBUILD_LOG_ROOT/linuxos/gdm7275x/latest_summary.env}"
 GDM7243A_UTKERNEL_SUMMARY_FILE="${GDM7243A_UTKERNEL_SUMMARY_FILE:-$AUTOBUILD_LOG_ROOT/uTKernel/gdm7243a/latest_summary.env}"
 GDM7243ST_UTKERNEL_SUMMARY_FILE="${GDM7243ST_UTKERNEL_SUMMARY_FILE:-$AUTOBUILD_LOG_ROOT/uTKernel/gdm7243st/latest_summary.env}"
 GDM7243I_ZEPHYR_SUMMARY_FILE="${GDM7243I_ZEPHYR_SUMMARY_FILE:-$AUTOBUILD_LOG_ROOT/zephyr_v2_3/gdm7243i/latest_summary.env}"
@@ -124,6 +125,11 @@ fi
 
 if ! summary_ready_for_today "$ZEPHYROS_SUMMARY_FILE"; then
     echo "[INFO] Daily mail notifier waiting: Zephyros summary is not ready for $RUN_DATE"
+    exit 0
+fi
+
+if ! summary_ready_for_today "$GDM7275X_LINUXOS_SUMMARY_FILE"; then
+    echo "[INFO] Daily mail notifier waiting: GDM7275X Linuxos master summary is not ready for $RUN_DATE"
     exit 0
 fi
 

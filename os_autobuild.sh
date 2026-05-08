@@ -22,6 +22,7 @@ OS_REPO_BRANCH="${OS_REPO_BRANCH:-}"
 OS_PRODUCT_CONFIG="${OS_PRODUCT_CONFIG:-}"
 OS_BUILD_VARIANT="${OS_BUILD_VARIANT:-}"
 OS_CONFIG_CMD="${OS_CONFIG_CMD:-}"
+OS_CONFIG_EXPECT_CHOICES="${OS_CONFIG_EXPECT_CHOICES:-}"
 OS_BUILD_CMD="${OS_BUILD_CMD:-make}"
 OS_REQUIRED_COMMANDS="${OS_REQUIRED_COMMANDS:-git}"
 OS_PATH_PREPEND="${OS_PATH_PREPEND:-}"
@@ -303,6 +304,7 @@ finalize() {
         echo "OS_PRODUCT_CONFIG=$(printf '%q' "$OS_PRODUCT_CONFIG")"
         echo "OS_BUILD_VARIANT=$(printf '%q' "$OS_BUILD_VARIANT")"
         echo "OS_CONFIG_CMD=$(printf '%q' "$OS_CONFIG_CMD")"
+        echo "OS_CONFIG_EXPECT_CHOICES=$(printf '%q' "$OS_CONFIG_EXPECT_CHOICES")"
         echo "OS_BUILD_CMD=$(printf '%q' "$OS_BUILD_CMD")"
         echo "OS_REQUIRED_COMMANDS=$(printf '%q' "$OS_REQUIRED_COMMANDS")"
         echo "OS_PATH_PREPEND=$(printf '%q' "$OS_PATH_PREPEND")"
@@ -368,6 +370,71 @@ require_command() {
     fi
 }
 
+run_expect_config() {
+    local choices=$1
+    local expect_script="$WORK_DIR/${OS_PROJECT_SLUG}_${MODEL_SLUG}_make_config.exp"
+
+    require_command expect
+    cat > "$expect_script" <<'EXP'
+#!/usr/bin/expect -f
+set timeout -1
+log_user 1
+
+set repo_dir [lindex $argv 0]
+set choices [split [lindex $argv 1] " "]
+set choice_index 0
+
+proc next_choice {choicesVar indexVar} {
+    upvar $choicesVar choices
+    upvar $indexVar index
+
+    if {$index >= [llength $choices]} {
+        send_user "\n===== UNEXPECTED CHOICE PROMPT =====\n"
+        exit 1
+    }
+
+    set answer [lindex $choices $index]
+    incr index
+    send -- "$answer\r"
+}
+
+spawn bash
+
+expect -re {[$#] $}
+send -- "cd -- \"$repo_dir\"\r"
+
+expect -re {[$#] $}
+send -- "set -o pipefail; make config; printf '\\n__CONFIG_RC__:%s\\n' \$?\r"
+
+expect_before {
+    -re {Default all settings .*([:]|\(NEW\))\s*$} { send -- "y\r"; exp_continue }
+    -re {Customize Kernel Settings .*([:]|\(NEW\))\s*$} { send -- "n\r"; exp_continue }
+    -re {Customize Application/Library Settings .*([:]|\(NEW\))\s*$} { send -- "n\r"; exp_continue }
+    -re {Update Default Vendor Settings .*([:]|\(NEW\))\s*$} { send -- "n\r"; exp_continue }
+    -re {choice\[[0-9\-?]+\]:\s*$} { next_choice choices choice_index; exp_continue }
+    -re {\[[^]]+\]\s*$} { send -- "\r"; exp_continue }
+}
+
+expect {
+    -re {__CONFIG_RC__:0} {
+        send_user "\n===== CONFIG SUCCESS =====\n"
+        exit 0
+    }
+    -re {__CONFIG_RC__:[1-9][0-9]*} {
+        send_user "\n===== CONFIG FAIL =====\n"
+        exit 1
+    }
+    timeout {
+        send_user "\n===== CONFIG TIMEOUT =====\n"
+        exit 1
+    }
+}
+EXP
+
+    chmod +x "$expect_script"
+    "$expect_script" "$REPO_DIR" "$choices"
+}
+
 echo "[INFO] $TARGET_NAME autobuild started"
 echo "[INFO] Workspace root: $WORK_ROOT"
 echo "[INFO] Autobuild root: $AUTOBUILD_ROOT"
@@ -380,6 +447,7 @@ echo "[INFO] Repo branch   : ${OS_REPO_BRANCH:-default}"
 echo "[INFO] Product config: ${OS_PRODUCT_CONFIG:-none}"
 echo "[INFO] Build variant : ${OS_BUILD_VARIANT:-none}"
 echo "[INFO] Config command: ${OS_CONFIG_CMD:-none}"
+echo "[INFO] Config choices: ${OS_CONFIG_EXPECT_CHOICES:-none}"
 echo "[INFO] Build command : $OS_BUILD_CMD"
 echo "[INFO] Required cmds : $OS_REQUIRED_COMMANDS"
 echo "[INFO] PATH prepend  : ${OS_PATH_PREPEND:-none}"
@@ -431,6 +499,14 @@ if [ -n "$OS_CONFIG_CMD" ]; then
         set -o pipefail
         bash -lc "$OS_CONFIG_CMD"
     ) 2>&1 | tee -a "$VERBOSE_LOG"
+fi
+
+if [ -n "$OS_CONFIG_EXPECT_CHOICES" ]; then
+    CURRENT_STAGE="configure"
+    echo
+    echo "[$OS_PROJECT_NAME expect configure]"
+    echo "------------------------------------------"
+    run_expect_config "$OS_CONFIG_EXPECT_CHOICES" 2>&1 | tee -a "$VERBOSE_LOG"
 fi
 
 CURRENT_STAGE="build"
