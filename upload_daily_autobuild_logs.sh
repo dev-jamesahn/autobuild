@@ -21,6 +21,14 @@ if [ -f "$SAMBA_UPLOAD_CONFIG" ]; then
     . "$SAMBA_UPLOAD_CONFIG"
 fi
 
+USER_RUNTIME_DIR="/run/user/$(id -u)"
+if [ -z "${XDG_RUNTIME_DIR:-}" ] && [ -d "$USER_RUNTIME_DIR" ]; then
+    export XDG_RUNTIME_DIR="$USER_RUNTIME_DIR"
+fi
+if [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ] && [ -n "${XDG_RUNTIME_DIR:-}" ] && [ -S "$XDG_RUNTIME_DIR/bus" ]; then
+    export DBUS_SESSION_BUS_ADDRESS="unix:path=$XDG_RUNTIME_DIR/bus"
+fi
+
 if [ "$SAMBA_UPLOAD_ENABLED" != "1" ]; then
     echo "[INFO] Daily log upload skipped: SAMBA_UPLOAD_ENABLED=$SAMBA_UPLOAD_ENABLED"
     exit 0
