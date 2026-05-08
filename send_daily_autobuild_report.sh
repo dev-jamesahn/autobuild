@@ -259,21 +259,21 @@ def safe_name(value):
 
 def upload_dir_name(section_name, item_name):
     if item_name == "OpenWrt v1.00":
-        return "openwrt_v1.00"
+        return "GDM7275X\\openwrt_v100"
     if item_name == "OpenWrt master":
-        return "openwrt_master"
+        return "GDM7275X\\openwrt_master"
     if item_name == "Linuxos master":
-        return "linuxos"
+        return "GDM7275X\\linuxos_master"
     if item_name == "Zephyros":
-        return "zephyros"
+        return "GDM7275X\\Zephyros"
 
     lowered = section_name.lower()
     if "gdm7243st" in lowered:
-        return "gdm7243st_utkernel"
+        return "GDM7243ST\\uTKernel"
     if "gdm7243a" in lowered:
-        return "gdm7243a_utkernel"
+        return "GDM7243A\\uTKernel"
     if "gdm7243i" in lowered:
-        return "gdm7243i_zephyr_v2.3"
+        return "GDM7243i\\zephyr_v2.3"
 
     return safe_name(section_name)
 

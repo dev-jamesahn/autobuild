@@ -77,25 +77,29 @@ upload_dir_name() {
     local lowered
 
     if [ -n "$openwrt_branch" ]; then
-        printf 'openwrt_%s' "$openwrt_branch"
+        case "$openwrt_branch" in
+            v1.00) printf 'GDM7275X/openwrt_v100' ;;
+            master) printf 'GDM7275X/openwrt_master' ;;
+            *) printf 'GDM7275X/openwrt_%s' "$openwrt_branch" ;;
+        esac
         return
     fi
 
     if [ -n "$zephyros_config_name" ] || [ "$target_name" = "GDM7275X Zephyros" ]; then
-        printf 'zephyros'
+        printf 'GDM7275X/Zephyros'
         return
     fi
 
     case "$os_project_name" in
         Linuxos)
-            printf 'linuxos'
+            printf 'GDM7275X/linuxos_master'
             return
             ;;
         uTKernel)
             lowered="$(printf '%s' "$target_name" | tr '[:upper:]' '[:lower:]')"
             case "$lowered" in
-                *gdm7243st*) printf 'gdm7243st_utkernel' ;;
-                *gdm7243a*) printf 'gdm7243a_utkernel' ;;
+                *gdm7243st*) printf 'GDM7243ST/uTKernel' ;;
+                *gdm7243a*) printf 'GDM7243A/uTKernel' ;;
                 *) safe_name "$target_name" ;;
             esac
             return
@@ -103,7 +107,7 @@ upload_dir_name() {
         zephyr-v2.3)
             lowered="$(printf '%s' "$target_name" | tr '[:upper:]' '[:lower:]')"
             case "$lowered" in
-                *gdm7243i*) printf 'gdm7243i_zephyr_v2.3' ;;
+                *gdm7243i*) printf 'GDM7243i/zephyr_v2.3' ;;
                 *) safe_name "$target_name" ;;
             esac
             return
@@ -307,7 +311,7 @@ copy_to_gio_uri() {
         gio remove "$uri" >/dev/null 2>&1 || true
     }
 
-    for rel_path in artifacts openwrt uTKernel zephyr_v2_3; do
+    for rel_path in artifacts openwrt uTKernel zephyr_v2_3 openwrt_v1.00 openwrt_master linuxos zephyros gdm7243a_utkernel gdm7243st_utkernel gdm7243i_zephyr_v2.3; do
         remove_gio_uri_tree "$target_uri/$RUN_DATE/$rel_path"
     done
     while IFS= read -r dir_path; do
