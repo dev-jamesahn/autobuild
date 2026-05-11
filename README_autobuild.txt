@@ -24,6 +24,7 @@ Main scripts:
 - os_autobuild.sh: generic model/OS build automation
 - send_daily_autobuild_report.sh: model-grouped daily mail notifier
 - upload_daily_autobuild_logs.sh: daily log upload to Samba
+- run_daily_autobuild_test_once.sh: one-time full Daily flow test scheduler
 - install_autobuild_cron.sh: preferred cron installer
 - install_openwrt_autobuild_cron.sh: backward-compatible cron installer
 
@@ -109,6 +110,17 @@ which expect
 5. Run one manual test first
 ----------------------------
 CONFIG_FILE=~/.config/openwrt_v1.00_autobuild.env ~/gct-build-tools/autobuild/openwrt_autobuild.sh
+
+To schedule a one-time full test using the same Daily flow, including a
+5-minute delayed start, 1-minute stagger, report mail, and Samba upload, run:
+
+~/gct-build-tools/autobuild/run_daily_autobuild_test_once.sh
+
+To review the schedule without creating jobs:
+
+~/gct-build-tools/autobuild/run_daily_autobuild_test_once.sh --dry-run
+
+The one-time test report mail is sent only to jamesahn@gctsemi.com by default.
 
 
 6. Check the manual test result

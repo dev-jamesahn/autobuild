@@ -29,9 +29,9 @@ zephyros_autobuild.sh             Zephyros build automation
 os_autobuild.sh                   Generic OS/model build automation
 send_daily_autobuild_report.sh    Daily model-grouped mail notifier
 upload_daily_autobuild_logs.sh    Daily log upload to Samba
-install_autobuild_cron.sh         Preferred cron installer alias
+run_daily_autobuild_test_once.sh   One-time full Daily flow test scheduler
+install_autobuild_cron.sh         Preferred cron installer
 install_openwrt_autobuild_cron.sh Backward-compatible cron installer
-archive/                          Retired one-time test helpers
 ```
 
 ## Install
@@ -52,6 +52,22 @@ selected artifacts from successful builds are uploaded to:
 K:\ENG\ENG05\CS\Test Log\Daily_build\YYYYMMDD
 ```
 
-Artifacts are placed below the uploaded date folder under `artifacts/<target>/`.
+Each build item is uploaded below a model/build directory split into `Image`
+and `Log` subdirectories.
+
+## One-Time Full Daily Test
+
+To run the same flow as the Daily cron without changing the registered cron
+table, schedule one-time jobs from the operating account:
+
+```bash
+~/gct-build-tools/autobuild/run_daily_autobuild_test_once.sh
+```
+
+The helper schedules the seven build jobs with the same 1-minute stagger as
+Daily cron starting 5 minutes later, then schedules notifier attempts every 10
+minutes. The notifier uses the existing report mail and Samba upload logic, but
+the one-time test mail is sent only to `jamesahn@gctsemi.com` by default. Use
+`--dry-run` to review the jobs without scheduling them.
 
 See `README_autobuild_kr.txt` for the Korean operation guide.

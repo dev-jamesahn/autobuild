@@ -24,6 +24,7 @@ autobuild는 모델 라인업별로 아래 항목을 매일 실행합니다.
 - os_autobuild.sh: 모델/OS 공용 빌드 자동화
 - send_daily_autobuild_report.sh: 모델별 daily report mail 발송
 - upload_daily_autobuild_logs.sh: daily log Samba 업로드
+- run_daily_autobuild_test_once.sh: 정식 Daily flow와 동일한 1회성 전체 테스트 예약
 - install_autobuild_cron.sh: 권장 cron 설치 명령
 - install_openwrt_autobuild_cron.sh: 기존 호환용 cron 설치 명령
 
@@ -109,6 +110,17 @@ which expect
 5. 먼저 수동 테스트 1회 실행
 ----------------------------
 CONFIG_FILE=~/.config/openwrt_v1.00_autobuild.env ~/gct-build-tools/autobuild/openwrt_autobuild.sh
+
+정식 Daily flow와 동일하게 5분 뒤부터 전체 항목을 1분 간격으로 예약하고
+Noti mail 및 Samba 업로드까지 확인하려면 아래 1회성 테스트 스크립트를
+사용합니다. 테스트 Noti mail은 기본적으로 jamesahn@gctsemi.com 에게만
+발송됩니다.
+
+~/gct-build-tools/autobuild/run_daily_autobuild_test_once.sh
+
+실제 예약 없이 실행 계획만 확인하려면:
+
+~/gct-build-tools/autobuild/run_daily_autobuild_test_once.sh --dry-run
 
 
 6. 수동 테스트 결과 확인
