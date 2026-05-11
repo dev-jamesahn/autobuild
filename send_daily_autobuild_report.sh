@@ -4,7 +4,7 @@ set -euo pipefail
 
 BASE_DIR="$HOME"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_FILE="${CONFIG_FILE:-$HOME/.config/openwrt_autobuild.env}"
+CONFIG_FILE="${CONFIG_FILE:-$HOME/.config/autobuild_common.env}"
 RUN_DATE="${RUN_DATE:-$(date +%Y%m%d)}"
 WORK_ROOT="${GCT_WORK_ROOT:-${WORK_ROOT:-$BASE_DIR/gct_workspace}}"
 AUTOBUILD_ROOT="${AUTOBUILD_ROOT:-$WORK_ROOT/autobuild}"
@@ -40,7 +40,7 @@ MAIL_FROM="${MAIL_FROM:-${SMTP_USER:-}}"
 MAIL_FROM_NAME="${MAIL_FROM_NAME:-GCT-CS AutoBuild}"
 MAIL_REPLY_TO="${MAIL_REPLY_TO:-jamesahn@gctsemi.com}"
 REPORT_SUBJECT_PREFIX="${REPORT_SUBJECT_PREFIX:-}"
-SAMBA_UPLOAD_CONFIG="${SAMBA_UPLOAD_CONFIG:-$BASE_DIR/.config/autobuild_samba_upload.env}"
+SAMBA_UPLOAD_CONFIG="${SAMBA_UPLOAD_CONFIG:-$BASE_DIR/.config/autobuild_common.env}"
 SAMBA_UPLOAD_UNC_ROOT="${SAMBA_UPLOAD_UNC_ROOT:-K:\\ENG\\ENG05\\CS\\Test Log\\Daily_build}"
 
 if [ -f "$SAMBA_UPLOAD_CONFIG" ]; then

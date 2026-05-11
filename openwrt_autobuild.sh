@@ -7,7 +7,7 @@ RUN_DATE="$(date +%Y%m%d)"
 START_EPOCH="$(date +%s)"
 
 BASE_DIR="$HOME"
-CONFIG_FILE="${CONFIG_FILE:-$HOME/.config/openwrt_autobuild.env}"
+CONFIG_FILE="${CONFIG_FILE:-$HOME/.config/autobuild_common.env}"
 RUN_USER="${USER:-${LOGNAME:-$(id -un)}}"
 
 if [ -f "$CONFIG_FILE" ]; then

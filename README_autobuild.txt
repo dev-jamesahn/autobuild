@@ -31,13 +31,20 @@ Daily report mail is handled by the central notifier. Individual build scripts
 do not send daily mail directly.
 
 Daily build logs and selected artifacts from successful builds are uploaded to
-the mapped Windows drive path. Artifacts are grouped under the artifacts
-subdirectory by build target.
+the mapped Windows drive path. Each build item is grouped by model and build
+target, then split into Image and Log directories.
 
 K:\ENG\ENG05\CS\Test Log\Daily_build\YYYYMMDD
 
 Account-specific settings belong in ~/.config/*.env and must not be committed.
 Use 600 permissions because the env files can contain mail credentials.
+
+Shared settings belong in ~/.config/autobuild_common.env. This file contains
+values shared by every build item, such as SMTP and Samba upload paths. Each
+target-specific env file sources the common file, then defines only target
+values such as repo, branch, build command, and artifact paths. The existing
+openwrt_autobuild.env and autobuild_samba_upload.env files can remain as
+compatibility wrappers.
 
 
 Legacy OpenWrt-Focused Setup Guide
