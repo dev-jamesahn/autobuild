@@ -15,6 +15,14 @@ if [ -f "$CONFIG_FILE" ]; then
     . "$CONFIG_FILE"
 fi
 
+SMTP_HOST="${SMTP_HOST:-}"
+SMTP_PORT="${SMTP_PORT:-587}"
+SMTP_USER="${SMTP_USER:-}"
+SMTP_PASSWORD="${SMTP_PASSWORD:-}"
+SMTP_USE_STARTTLS="${SMTP_USE_STARTTLS:-1}"
+SMTP_INSECURE_TLS="${SMTP_INSECURE_TLS:-0}"
+MAIL_FROM="${MAIL_FROM:-${SMTP_USER:-}}"
+
 PKG_VERSION="${PKG_VERSION:-0.0.0}"
 MODEL_LINEUP="${MODEL_LINEUP:-GDM7275X}"
 ZEPHYROS_CONFIG_SELECT="${ZEPHYROS_CONFIG_SELECT:-7}"
@@ -86,8 +94,8 @@ send_daily_status_email() {
         return
     fi
 
-    if [ -z "$GMAIL_SMTP_USER" ] || [ -z "$GMAIL_SMTP_APP_PASSWORD" ]; then
-        echo "[WARN] Email notification skipped: GMAIL_SMTP_USER or GMAIL_SMTP_APP_PASSWORD is not set"
+    if [ -z "$SMTP_HOST" ] || [ -z "$SMTP_PORT" ] || [ -z "$MAIL_FROM" ]; then
+        echo "[WARN] Email notification skipped: SMTP_HOST, SMTP_PORT, or MAIL_FROM is not set"
         return
     fi
 
@@ -98,12 +106,16 @@ send_daily_status_email() {
 
     subject="GCT-CS Daily Build Report - $(date '+%m/%d/%Y')"
 
-    if ! GMAIL_SMTP_USER="$GMAIL_SMTP_USER" \
-        GMAIL_SMTP_APP_PASSWORD="$GMAIL_SMTP_APP_PASSWORD" \
+    if ! SMTP_HOST="$SMTP_HOST" \
+        SMTP_PORT="$SMTP_PORT" \
+        SMTP_USER="$SMTP_USER" \
+        SMTP_PASSWORD="$SMTP_PASSWORD" \
+        SMTP_USE_STARTTLS="$SMTP_USE_STARTTLS" \
+        SMTP_INSECURE_TLS="$SMTP_INSECURE_TLS" \
+        MAIL_FROM="$MAIL_FROM" \
         MAIL_TO="$MAIL_TO" \
-        GMAIL_MAIL_SUBJECT="$subject" \
+        MAIL_SUBJECT="$subject" \
         DAILY_STATUS_FILE="$DAILY_STATUS_FILE" \
-        GMAIL_SMTP_INSECURE_TLS="$GMAIL_SMTP_INSECURE_TLS" \
         MAIL_FROM_NAME="$MAIL_FROM_NAME" \
         MAIL_REPLY_TO="$MAIL_REPLY_TO" \
         python3 - <<'PY'
@@ -114,12 +126,16 @@ import sys
 from html import escape
 from email.message import EmailMessage
 
-user = os.environ["GMAIL_SMTP_USER"]
-password = os.environ["GMAIL_SMTP_APP_PASSWORD"]
-subject = os.environ["GMAIL_MAIL_SUBJECT"]
+smtp_host = os.environ["SMTP_HOST"]
+smtp_port = int(os.environ.get("SMTP_PORT", "587"))
+smtp_user = os.environ.get("SMTP_USER", "").strip()
+smtp_password = os.environ.get("SMTP_PASSWORD", "")
+smtp_use_starttls = os.environ.get("SMTP_USE_STARTTLS", "1") == "1"
+smtp_insecure_tls = os.environ.get("SMTP_INSECURE_TLS", "0") == "1"
+mail_from = os.environ["MAIL_FROM"].strip()
+subject = os.environ["MAIL_SUBJECT"]
 daily_status_file = os.environ["DAILY_STATUS_FILE"]
 recipients = [addr.strip() for addr in os.environ["MAIL_TO"].split(",") if addr.strip()]
-insecure_tls = os.environ.get("GMAIL_SMTP_INSECURE_TLS", "1") == "1"
 from_name = os.environ.get("MAIL_FROM_NAME", "").strip()
 reply_to = os.environ.get("MAIL_REPLY_TO", "").strip()
 
@@ -222,7 +238,7 @@ html_body = f"""\
 
 msg = EmailMessage()
 msg["Subject"] = subject
-msg["From"] = f"{from_name} <{user}>" if from_name else user
+msg["From"] = f"{from_name} <{mail_from}>" if from_name else mail_from
 msg["To"] = ", ".join(recipients)
 if reply_to:
     msg["Reply-To"] = reply_to
@@ -230,15 +246,17 @@ msg.set_content(body)
 msg.add_alternative(html_body, subtype="html")
 
 ctx = ssl.create_default_context()
-if insecure_tls:
+if smtp_insecure_tls:
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
 
-with smtplib.SMTP("smtp.gmail.com", 587, timeout=30) as smtp:
+with smtplib.SMTP(smtp_host, smtp_port, timeout=30) as smtp:
     smtp.ehlo()
-    smtp.starttls(context=ctx)
-    smtp.ehlo()
-    smtp.login(user, password)
+    if smtp_use_starttls:
+        smtp.starttls(context=ctx)
+        smtp.ehlo()
+    if smtp_user or smtp_password:
+        smtp.login(smtp_user, smtp_password)
     smtp.send_message(msg)
 
 print("MAIL_SENT", file=sys.stdout)
