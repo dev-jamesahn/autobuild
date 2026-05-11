@@ -179,7 +179,7 @@ fi
 
 run_daily_log_upload
 
-REPORT_SUBJECT="GCT-CS Daily Automated Build Report - $(date '+%m/%d/%Y')"
+REPORT_SUBJECT="GCT-CS Daily Build Report - $(date '+%m/%d/%Y')"
 if [ -n "$REPORT_SUBJECT_PREFIX" ]; then
     REPORT_SUBJECT="$REPORT_SUBJECT_PREFIX $REPORT_SUBJECT"
 fi
@@ -410,18 +410,18 @@ for group in sorted(model_groups, key=model_sort_key):
     )
 
 summary_html = "".join(model_cards) if model_cards else "<div style='color:#475467;'>No parsed sections found.</div>"
-plain_body = "GCT-CS Daily Automated Build Report\n\nRaw daily report is omitted. Please view the HTML email for the model-grouped build summary."
+plain_body = "GCT-CS Daily Build Report\n\nRaw daily report is omitted. Please view the HTML email for the model-grouped build summary."
 html_body = f"""\
 <html>
   <body style="margin:0;padding:24px;background:#f8fafc;font-family:'Segoe UI',Arial,sans-serif;color:#101828;">
     <div style="max-width:860px;margin:0 auto;">
       <div style="background:#0f172a;border-radius:16px;padding:24px 28px;color:#ffffff;margin-bottom:16px;">
         <div style="font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;opacity:0.88;">GCT-CS</div>
-        <div style="font-size:28px;font-weight:800;margin-top:6px;">Daily automated build report</div>
+        <div style="font-size:28px;font-weight:800;margin-top:6px;">Daily build report</div>
         <div style="font-size:14px;opacity:0.9;margin-top:8px;">Generated from the CS-buildserver</div>
       </div>
       <div style="background:#ffffff;border:1px solid #eaecf0;border-radius:16px;padding:20px 20px 8px;margin-bottom:16px;">
-        <div style="font-size:18px;font-weight:700;margin-bottom:14px;">{escape(subject.replace('GCT-CS Daily Automated Build Report - ', ''))} - Build Test Summary</div>
+        <div style="font-size:18px;font-weight:700;margin-bottom:14px;">{escape(subject.replace('GCT-CS Daily Build Report - ', ''))} - Build Test Summary</div>
         {summary_html}
       </div>
     </div>

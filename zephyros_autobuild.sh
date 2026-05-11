@@ -96,7 +96,7 @@ send_daily_status_email() {
         return
     fi
 
-    subject="GCT-CS Daily Automated Build Report - $(date '+%m/%d/%Y')"
+    subject="GCT-CS Daily Build Report - $(date '+%m/%d/%Y')"
 
     if ! GMAIL_SMTP_USER="$GMAIL_SMTP_USER" \
         GMAIL_SMTP_APP_PASSWORD="$GMAIL_SMTP_APP_PASSWORD" \
@@ -204,11 +204,11 @@ html_body = f"""\
     <div style="max-width:860px;margin:0 auto;">
       <div style="background:linear-gradient(135deg,#0f172a 0%,#1d4ed8 100%);border-radius:16px;padding:24px 28px;color:#ffffff;margin-bottom:16px;">
         <div style="font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;opacity:0.88;">GCT-CS</div>
-        <div style="font-size:28px;font-weight:800;margin-top:6px;">Daily automated build report</div>
+        <div style="font-size:28px;font-weight:800;margin-top:6px;">Daily build report</div>
         <div style="font-size:14px;opacity:0.9;margin-top:8px;">Generated from the CS-buildserver</div>
       </div>
       <div style="background:#ffffff;border:1px solid #eaecf0;border-radius:16px;padding:20px 20px 8px;margin-bottom:16px;">
-        <div style="font-size:18px;font-weight:700;margin-bottom:14px;">{escape(subject.replace('GCT-CS Daily Automated Build Report - ', ''))} - Build Test Summary</div>
+        <div style="font-size:18px;font-weight:700;margin-bottom:14px;">{escape(subject.replace('GCT-CS Daily Build Report - ', ''))} - Build Test Summary</div>
         {summary_html}
       </div>
       <div style="background:#ffffff;border:1px solid #eaecf0;border-radius:16px;padding:20px;">
