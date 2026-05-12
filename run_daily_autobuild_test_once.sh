@@ -9,6 +9,7 @@ AUTOBUILD_ROOT="${AUTOBUILD_ROOT:-$WORK_ROOT/autobuild}"
 AUTOBUILD_LOG_ROOT="${AUTOBUILD_LOG_ROOT:-$AUTOBUILD_ROOT/logs}"
 AUTOBUILD_STATE_ROOT="${AUTOBUILD_STATE_ROOT:-$AUTOBUILD_ROOT/state}"
 RUN_DATE="${RUN_DATE:-$(date +%Y%m%d)}"
+TEST_RUN_TS="${TEST_RUN_TS:-$(date +%Y%m%d_%H%M%S)}"
 
 START_AFTER_MINUTES="${START_AFTER_MINUTES:-5}"
 NOTIFIER_START_AFTER_MINUTES="${NOTIFIER_START_AFTER_MINUTES:-$((START_AFTER_MINUTES + 10))}"
@@ -18,8 +19,9 @@ TEST_REPORT_SUBJECT_PREFIX="${TEST_REPORT_SUBJECT_PREFIX:-[Test]}"
 TEST_MAIL_TO="${TEST_MAIL_TO:-jamesahn@gctsemi.com}"
 SCHEDULER="${SCHEDULER:-auto}"
 SCHEDULER_LOG="$AUTOBUILD_LOG_ROOT/notifier/one_time_daily_test_scheduler.log"
-TEST_SENT_FLAG_FILE="$AUTOBUILD_STATE_ROOT/.one_time_daily_autobuild_mail_sent_${RUN_DATE}.flag"
-TEST_UPLOAD_FLAG_FILE="$AUTOBUILD_STATE_ROOT/.one_time_daily_autobuild_logs_uploaded_${RUN_DATE}.flag"
+TEST_DAILY_STATUS_FILE="${TEST_DAILY_STATUS_FILE:-$AUTOBUILD_STATE_ROOT/one_time_daily_autobuild_status_${TEST_RUN_TS}.txt}"
+TEST_SENT_FLAG_FILE="$AUTOBUILD_STATE_ROOT/.one_time_daily_autobuild_mail_sent_${TEST_RUN_TS}.flag"
+TEST_UPLOAD_FLAG_FILE="$AUTOBUILD_STATE_ROOT/.one_time_daily_autobuild_logs_uploaded_${TEST_RUN_TS}.flag"
 
 OPENWRT_SCRIPT_PATH="$SCRIPT_DIR/openwrt_autobuild.sh"
 ZEPHYROS_SCRIPT_PATH="$SCRIPT_DIR/zephyros_autobuild.sh"
@@ -106,6 +108,19 @@ require_file "$ZEPHYROS_CONFIG"
 require_file "$GDM7243A_UTKERNEL_CONFIG"
 require_file "$GDM7243ST_UTKERNEL_CONFIG"
 require_file "$GDM7243I_ZEPHYR_CONFIG"
+require_file "$AUTOBUILD_CONFIG_ROOT/autobuild_common.env"
+
+# shellcheck disable=SC1090
+. "$AUTOBUILD_CONFIG_ROOT/autobuild_common.env"
+if [ "${SAMBA_UPLOAD_ENABLED:-1}" = "1" ] && [ -n "${SAMBA_UPLOAD_LOCAL_DIR:-}" ]; then
+    samba_probe="$SAMBA_UPLOAD_LOCAL_DIR/.autobuild_write_test_$$"
+    if ! touch "$samba_probe" 2>/dev/null; then
+        echo "Samba upload local dir is not writable: $SAMBA_UPLOAD_LOCAL_DIR" >&2
+        echo "Mount/login to Samba first, then rerun this one-time test." >&2
+        exit 1
+    fi
+    rm -f "$samba_probe"
+fi
 
 if [ "$SCHEDULER" = "auto" ]; then
     if command -v at >/dev/null 2>&1; then
@@ -169,37 +184,37 @@ schedule_at() {
 
 schedule_at "$START_AFTER_MINUTES" \
     "GDM7275X OpenWrt v1.00" \
-    "CONFIG_FILE=$V100_CONFIG /bin/bash -lc '$OPENWRT_SCRIPT_PATH >> \"$V100_CRON_LOG\" 2>&1'"
+    "CONFIG_FILE=$V100_CONFIG DAILY_STATUS_FILE='$TEST_DAILY_STATUS_FILE' /bin/bash -lc '$OPENWRT_SCRIPT_PATH >> \"$V100_CRON_LOG\" 2>&1'"
 
 schedule_at "$((START_AFTER_MINUTES + 1))" \
     "GDM7275X OpenWrt master" \
-    "CONFIG_FILE=$MASTER_CONFIG /bin/bash -lc '$OPENWRT_SCRIPT_PATH >> \"$MASTER_CRON_LOG\" 2>&1'"
+    "CONFIG_FILE=$MASTER_CONFIG DAILY_STATUS_FILE='$TEST_DAILY_STATUS_FILE' /bin/bash -lc '$OPENWRT_SCRIPT_PATH >> \"$MASTER_CRON_LOG\" 2>&1'"
 
 schedule_at "$((START_AFTER_MINUTES + 2))" \
     "GDM7275X Linuxos master" \
-    "CONFIG_FILE=$GDM7275X_LINUXOS_CONFIG /bin/bash -lc '$OS_SCRIPT_PATH >> \"$GDM7275X_LINUXOS_CRON_LOG\" 2>&1'"
+    "CONFIG_FILE=$GDM7275X_LINUXOS_CONFIG DAILY_STATUS_FILE='$TEST_DAILY_STATUS_FILE' /bin/bash -lc '$OS_SCRIPT_PATH >> \"$GDM7275X_LINUXOS_CRON_LOG\" 2>&1'"
 
 schedule_at "$((START_AFTER_MINUTES + 3))" \
     "GDM7275X Zephyros" \
-    "CONFIG_FILE=$ZEPHYROS_CONFIG /bin/bash -lc '$ZEPHYROS_SCRIPT_PATH >> \"$ZEPHYROS_CRON_LOG\" 2>&1'"
+    "CONFIG_FILE=$ZEPHYROS_CONFIG DAILY_STATUS_FILE='$TEST_DAILY_STATUS_FILE' /bin/bash -lc '$ZEPHYROS_SCRIPT_PATH >> \"$ZEPHYROS_CRON_LOG\" 2>&1'"
 
 schedule_at "$((START_AFTER_MINUTES + 4))" \
     "GDM7243A uTKernel" \
-    "CONFIG_FILE=$GDM7243A_UTKERNEL_CONFIG /bin/bash -lc '$OS_SCRIPT_PATH >> \"$GDM7243A_UTKERNEL_CRON_LOG\" 2>&1'"
+    "CONFIG_FILE=$GDM7243A_UTKERNEL_CONFIG DAILY_STATUS_FILE='$TEST_DAILY_STATUS_FILE' /bin/bash -lc '$OS_SCRIPT_PATH >> \"$GDM7243A_UTKERNEL_CRON_LOG\" 2>&1'"
 
 schedule_at "$((START_AFTER_MINUTES + 5))" \
     "GDM7243ST uTKernel" \
-    "CONFIG_FILE=$GDM7243ST_UTKERNEL_CONFIG /bin/bash -lc '$OS_SCRIPT_PATH >> \"$GDM7243ST_UTKERNEL_CRON_LOG\" 2>&1'"
+    "CONFIG_FILE=$GDM7243ST_UTKERNEL_CONFIG DAILY_STATUS_FILE='$TEST_DAILY_STATUS_FILE' /bin/bash -lc '$OS_SCRIPT_PATH >> \"$GDM7243ST_UTKERNEL_CRON_LOG\" 2>&1'"
 
 schedule_at "$((START_AFTER_MINUTES + 6))" \
     "GDM7243i zephyr-v2.3" \
-    "CONFIG_FILE=$GDM7243I_ZEPHYR_CONFIG /bin/bash -lc '$OS_SCRIPT_PATH >> \"$GDM7243I_ZEPHYR_CRON_LOG\" 2>&1'"
+    "CONFIG_FILE=$GDM7243I_ZEPHYR_CONFIG DAILY_STATUS_FILE='$TEST_DAILY_STATUS_FILE' /bin/bash -lc '$OS_SCRIPT_PATH >> \"$GDM7243I_ZEPHYR_CRON_LOG\" 2>&1'"
 
 for ((idx = 0; idx < NOTIFIER_REPEAT_COUNT; idx++)); do
     offset=$((NOTIFIER_START_AFTER_MINUTES + idx * NOTIFIER_INTERVAL_MINUTES))
     schedule_at "$offset" \
         "Daily notifier attempt $((idx + 1))/$NOTIFIER_REPEAT_COUNT" \
-        "RUN_DATE=$RUN_DATE MAIL_TO='$TEST_MAIL_TO' REPORT_SUBJECT_PREFIX='$TEST_REPORT_SUBJECT_PREFIX' SENT_FLAG_FILE='$TEST_SENT_FLAG_FILE' UPLOAD_FLAG_FILE='$TEST_UPLOAD_FLAG_FILE' /bin/bash -lc '$NOTIFIER_SCRIPT_PATH >> \"$NOTIFIER_CRON_LOG\" 2>&1'"
+        "RUN_DATE=$RUN_DATE MIN_RUN_TS='$TEST_RUN_TS' DAILY_STATUS_FILE='$TEST_DAILY_STATUS_FILE' MAIL_TO='$TEST_MAIL_TO' REPORT_SUBJECT_PREFIX='$TEST_REPORT_SUBJECT_PREFIX' SENT_FLAG_FILE='$TEST_SENT_FLAG_FILE' UPLOAD_FLAG_FILE='$TEST_UPLOAD_FLAG_FILE' /bin/bash -lc '$NOTIFIER_SCRIPT_PATH >> \"$NOTIFIER_CRON_LOG\" 2>&1'"
 done
 
 echo

@@ -26,6 +26,7 @@ DAILY_STATUS_FILE="${DAILY_STATUS_FILE:-$AUTOBUILD_STATE_ROOT/daily_autobuild_st
 SENT_FLAG_FILE="${SENT_FLAG_FILE:-$AUTOBUILD_STATE_ROOT/.daily_autobuild_mail_sent_${RUN_DATE}.flag}"
 UPLOAD_FLAG_FILE="${UPLOAD_FLAG_FILE:-$AUTOBUILD_STATE_ROOT/.daily_autobuild_logs_uploaded_${RUN_DATE}.flag}"
 LOCK_DIR="${LOCK_DIR:-$AUTOBUILD_TMP_ROOT/daily_autobuild_mail_notifier_${RUN_DATE}.lock}"
+MIN_RUN_TS="${MIN_RUN_TS:-}"
 V100_SUMMARY_FILE="${V100_SUMMARY_FILE:-$AUTOBUILD_LOG_ROOT/openwrt/v1.00/latest_summary.env}"
 MASTER_SUMMARY_FILE="${MASTER_SUMMARY_FILE:-$AUTOBUILD_LOG_ROOT/openwrt/master/latest_summary.env}"
 ZEPHYROS_SUMMARY_FILE="${ZEPHYROS_SUMMARY_FILE:-$AUTOBUILD_LOG_ROOT/zephyros/latest_summary.env}"
@@ -111,6 +112,10 @@ summary_ready_for_today() {
     . "$summary_file"
 
     if [ -z "${RUN_TS:-}" ] || [ "${RUN_TS%%_*}" != "$RUN_DATE" ]; then
+        return 1
+    fi
+
+    if [ -n "$MIN_RUN_TS" ] && [[ "$RUN_TS" < "$MIN_RUN_TS" ]]; then
         return 1
     fi
 
