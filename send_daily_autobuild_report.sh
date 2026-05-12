@@ -413,8 +413,6 @@ for section in sections:
             "font-family:Consolas,Menlo,monospace;font-size:12px;line-height:1.45;color:#344054;white-space:pre-wrap;'>"
             f"{git_block}</pre>"
         )
-    if fail_reason:
-        card_lines.append(f"<div><strong>Fail reason:</strong> {escape(fail_reason)}</div>")
     if failure_analysis:
         card_lines.append(f"<div><strong>Failure analysis:</strong> {escape(failure_analysis)}</div>")
     if log_path:
