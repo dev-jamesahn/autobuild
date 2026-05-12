@@ -43,7 +43,8 @@ fi
 
 TMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/daily_autobuild_upload.XXXXXX")"
 PACKAGE_DIR="$TMP_ROOT/$RUN_DATE"
-MANIFEST_FILE="$PACKAGE_DIR/upload_manifest.txt"
+MANIFEST_FILE="$TMP_ROOT/upload_manifest.txt"
+FW_BUILD_INFO_FILE="$PACKAGE_DIR/FW_build_info_${RUN_DATE}.txt"
 
 cleanup() {
     rm -rf "$TMP_ROOT"
@@ -52,7 +53,6 @@ cleanup() {
 trap cleanup EXIT
 
 mkdir -p "$PACKAGE_DIR"
-cp "$DAILY_STATUS_FILE" "$PACKAGE_DIR/"
 
 {
     echo "run_date=$RUN_DATE"
@@ -61,6 +61,83 @@ cp "$DAILY_STATUS_FILE" "$PACKAGE_DIR/"
     echo
     echo "[uploaded_log_dirs]"
 } > "$MANIFEST_FILE"
+
+generate_fw_build_info() {
+    awk '
+        function flush_section() {
+            if (section == "") {
+                return
+            }
+            git_info[section] = git
+            section = ""
+            git = ""
+            in_git = 0
+        }
+
+        /^\[/ && /\]$/ {
+            flush_section()
+            section = substr($0, 2, length($0) - 2)
+            next
+        }
+
+        /^Git log[[:space:]]*:/ {
+            in_git = 1
+            next
+        }
+
+        in_git && /^  / {
+            git = git $0 "\n"
+            next
+        }
+
+        in_git && /^[^[:space:]]/ {
+            in_git = 0
+        }
+
+        END {
+            flush_section()
+
+            print "[GDM7275X]"
+            print ""
+            print_entry("OpenWRT v1.00", "GDM7275X OpenWrt v1.00")
+            print_entry("OpenWRT master", "GDM7275X OpenWrt master")
+            print_entry("Linuxos master", "GDM7275X Linuxos master")
+            print_entry("Zephyros", "GDM7275X Zephyros")
+            print ""
+
+            print "[GDM7243A]"
+            print ""
+            print_entry("uTKernel - gdm7243a_no_l2", "GDM7243A uTKernel - gdm7243a_no_l2")
+            print ""
+
+            print "[GDM7243ST]"
+            print ""
+            print_entry("uTKernel - gdm7243mt_32mb_no_l2_vport14", "GDM7243ST uTKernel - gdm7243mt_32mb_no_l2_vport14")
+            print ""
+
+            print "[GDM7243i]"
+            print ""
+            print_entry("zephyr-v2.3 - gdm7243i_nbiot_ntn_quad", "GDM7243i zephyr-v2.3 - gdm7243i_nbiot_ntn_quad")
+        }
+
+        function print_entry(title, key) {
+            print "  - " title
+            if (git_info[key] != "") {
+                formatted = git_info[key]
+                gsub(/^  /, "    ", formatted)
+                gsub(/\n  /, "\n    ", formatted)
+                printf "%s", formatted
+            } else {
+                print "    commit : N/A"
+                print "    author : N/A"
+                print "    date   : N/A"
+                print "    subject: N/A"
+            }
+        }
+    ' "$DAILY_STATUS_FILE" > "$FW_BUILD_INFO_FILE"
+}
+
+generate_fw_build_info
 
 safe_name() {
     local value=$1
@@ -316,6 +393,9 @@ copy_to_gio_uri() {
     for rel_path in artifacts openwrt uTKernel zephyr_v2_3 openwrt_v1.00 openwrt_master linuxos zephyros gdm7243a_utkernel gdm7243st_utkernel gdm7243i_zephyr_v2.3; do
         remove_gio_uri_tree "$target_uri/$RUN_DATE/$rel_path"
     done
+    gio remove "$target_uri/$RUN_DATE/daily_autobuild_status_${RUN_DATE}.txt" >/dev/null 2>&1 || true
+    gio remove "$target_uri/$RUN_DATE/upload_manifest.txt" >/dev/null 2>&1 || true
+
     while IFS= read -r dir_path; do
         [ "$dir_path" != "$PACKAGE_DIR" ] || continue
         [ "$(dirname "$dir_path")" = "$PACKAGE_DIR" ] || continue
