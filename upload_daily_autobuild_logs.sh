@@ -123,9 +123,9 @@ copy_artifact_path() {
     local dest_path
 
     if [ -d "$artifact_path" ]; then
-        find "$artifact_path" -type f | sort | while IFS= read -r nested_file; do
+        find -L "$artifact_path" -type f | sort | while IFS= read -r nested_file; do
             dest_path="$target_dir/$(basename "$nested_file")"
-            rsync -a "$nested_file" "$dest_path"
+            rsync -aL "$nested_file" "$dest_path"
             printf '  %s -> Image/%s\n' "$nested_file" "$(basename "$nested_file")" >> "$MANIFEST_FILE"
         done
         return
@@ -136,7 +136,7 @@ copy_artifact_path() {
     fi
 
     dest_path="$target_dir/$(basename "$artifact_path")"
-    rsync -a "$artifact_path" "$dest_path"
+    rsync -aL "$artifact_path" "$dest_path"
     printf '  %s -> Image/%s\n' "$artifact_path" "$(basename "$artifact_path")" >> "$MANIFEST_FILE"
 }
 
