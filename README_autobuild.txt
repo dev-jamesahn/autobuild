@@ -37,15 +37,16 @@ target, then split into Image and Log directories.
 
 K:\ENG\ENG05\CS\Test Log\Daily_build\YYYYMMDD
 
-Account-specific settings belong in ~/.config/*.env and must not be committed.
-Use 600 permissions because the env files can contain mail credentials.
-
-Shared settings belong in ~/.config/autobuild_common.env. This file contains
+Shared settings belong in config/*.env inside this repository. This keeps the
+runtime configuration identical after git pull, regardless of whether the
+scripts are inspected from the gct or jamesahn account. The common file contains
 values shared by every build item, such as SMTP and Samba upload paths. Each
 target-specific env file sources the common file, then defines only target
-values such as repo, branch, build command, and artifact paths. The existing
-openwrt_autobuild.env and autobuild_samba_upload.env files can remain as
-compatibility wrappers.
+values such as repo, branch, build command, and artifact paths.
+
+Samba credentials are not stored in env files. Mount/login to the Samba share
+once before installing cron; the installer verifies that the configured local
+upload directory is writable.
 
 
 Legacy OpenWrt-Focused Setup Guide
@@ -63,11 +64,11 @@ Keep the autobuild scripts in this Git-managed directory:
 - zephyros_autobuild.sh
 - send_daily_autobuild_report.sh
 
-Config examples can be managed separately when needed:
+Config files are managed in the repository:
 
-- ~/.config/openwrt_v1.00_autobuild.env
-- ~/.config/openwrt_master_autobuild.env
-- ~/.config/zephyros_autobuild.env
+- config/openwrt_v1.00_autobuild.env
+- config/openwrt_master_autobuild.env
+- config/zephyros_autobuild.env
 
 
 1. Prepare the Git-managed directory
@@ -86,18 +87,13 @@ If the files already exist locally, keep this directory layout:
 chmod +x ~/gct-build-tools/autobuild/*.sh
 
 
-3. Create the config file
--------------------------
-mkdir -p ~/.config
+3. Check repository config
+--------------------------
+The shared env files are kept in:
 
-Create this file:
+~/gct-build-tools/autobuild/config
 
-~/.config/openwrt_v1.00_autobuild.env
-
-Recommended contents:
-
-OPENWRT_BRANCH=v1.00
-PKG_VERSION=0.0.0
+Review and update the files there when the Daily build settings change.
 
 
 4. Check required commands
@@ -109,7 +105,7 @@ which expect
 
 5. Run one manual test first
 ----------------------------
-CONFIG_FILE=~/.config/openwrt_v1.00_autobuild.env ~/gct-build-tools/autobuild/openwrt_autobuild.sh
+CONFIG_FILE=~/gct-build-tools/autobuild/config/openwrt_v1.00_autobuild.env ~/gct-build-tools/autobuild/openwrt_autobuild.sh
 
 To schedule a one-time full test using the same Daily flow, including a
 5-minute delayed start, 1-minute stagger, report mail, and Samba upload, run:
@@ -140,7 +136,7 @@ crontab -l
 
 Expected cron entry format:
 
-0 0 * * * CONFIG_FILE=/home/<user>/.config/openwrt_v1.00_autobuild.env /bin/bash -lc '/home/<user>/gct-build-tools/autobuild/openwrt_autobuild.sh >> "/home/<user>/gct_workspace/autobuild/logs/openwrt/v1.00/cron_runner.log" 2>&1' # OPENWRT_AUTOBUILD_V100
+0 0 * * * CONFIG_FILE=/home/<user>/gct-build-tools/autobuild/config/openwrt_v1.00_autobuild.env /bin/bash -lc '/home/<user>/gct-build-tools/autobuild/openwrt_autobuild.sh >> "/home/<user>/gct_workspace/autobuild/logs/openwrt/v1.00/cron_runner.log" 2>&1' # OPENWRT_AUTOBUILD_V100
 
 
 9. Check nightly build results
@@ -153,7 +149,7 @@ tail -n 100 ~/gct_workspace/autobuild/logs/openwrt/v1.00/cron_runner.log
 Important notes
 ---------------
 - The autobuild script files must stay in the same directory.
-- Manage script files under ~/gct-build-tools/autobuild and keep account-specific settings in ~/.config/*.env.
+- Manage script files and shared env files under ~/gct-build-tools/autobuild.
 - Run the manual test before enabling cron.
 - The account must have access to the required repositories.
 - The build logs are written under:
@@ -207,7 +203,6 @@ If nothing is shown, continue to the next step.
 
 3. Remove autobuild files and directories
 -----------------------------------------
-rm -f ~/.config/openwrt_v1.00_autobuild.env
 rm -rf ~/gct_workspace/autobuild/repos/openwrt/builds/v1.00
 rm -rf ~/gct_workspace/autobuild/repos/openwrt/deps
 rm -rf ~/gct_workspace/autobuild/logs/openwrt/v1.00

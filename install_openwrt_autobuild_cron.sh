@@ -3,6 +3,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+AUTOBUILD_CONFIG_ROOT="${AUTOBUILD_CONFIG_ROOT:-$SCRIPT_DIR/config}"
 OPENWRT_SCRIPT_PATH="$SCRIPT_DIR/openwrt_autobuild.sh"
 ZEPHYROS_SCRIPT_PATH="$SCRIPT_DIR/zephyros_autobuild.sh"
 OS_SCRIPT_PATH="$SCRIPT_DIR/os_autobuild.sh"
@@ -11,13 +12,13 @@ WORK_ROOT="${GCT_WORK_ROOT:-$HOME/gct_workspace}"
 AUTOBUILD_ROOT="${AUTOBUILD_ROOT:-$WORK_ROOT/autobuild}"
 AUTOBUILD_LOG_ROOT="${AUTOBUILD_LOG_ROOT:-$AUTOBUILD_ROOT/logs}"
 
-V100_CONFIG="$HOME/.config/openwrt_v1.00_autobuild.env"
-MASTER_CONFIG="$HOME/.config/openwrt_master_autobuild.env"
-ZEPHYROS_CONFIG="$HOME/.config/zephyros_autobuild.env"
-GDM7275X_LINUXOS_CONFIG="$HOME/.config/gdm7275x_linuxos_master_autobuild.env"
-GDM7243A_UTKERNEL_CONFIG="$HOME/.config/gdm7243a_utkernel_autobuild.env"
-GDM7243ST_UTKERNEL_CONFIG="$HOME/.config/gdm7243st_utkernel_autobuild.env"
-GDM7243I_ZEPHYR_CONFIG="$HOME/.config/gdm7243i_zephyr_v2.3_autobuild.env"
+V100_CONFIG="$AUTOBUILD_CONFIG_ROOT/openwrt_v1.00_autobuild.env"
+MASTER_CONFIG="$AUTOBUILD_CONFIG_ROOT/openwrt_master_autobuild.env"
+ZEPHYROS_CONFIG="$AUTOBUILD_CONFIG_ROOT/zephyros_autobuild.env"
+GDM7275X_LINUXOS_CONFIG="$AUTOBUILD_CONFIG_ROOT/gdm7275x_linuxos_master_autobuild.env"
+GDM7243A_UTKERNEL_CONFIG="$AUTOBUILD_CONFIG_ROOT/gdm7243a_utkernel_autobuild.env"
+GDM7243ST_UTKERNEL_CONFIG="$AUTOBUILD_CONFIG_ROOT/gdm7243st_utkernel_autobuild.env"
+GDM7243I_ZEPHYR_CONFIG="$AUTOBUILD_CONFIG_ROOT/gdm7243i_zephyr_v2.3_autobuild.env"
 
 V100_LOG_ROOT="$AUTOBUILD_LOG_ROOT/openwrt/v1.00"
 MASTER_LOG_ROOT="$AUTOBUILD_LOG_ROOT/openwrt/master"
@@ -73,6 +74,35 @@ fi
 if [ ! -x "$NOTIFIER_SCRIPT_PATH" ]; then
     echo "Script not executable: $NOTIFIER_SCRIPT_PATH"
     exit 1
+fi
+
+require_file() {
+    local path=$1
+    if [ ! -f "$path" ]; then
+        echo "Missing required config file: $path"
+        exit 1
+    fi
+}
+
+require_file "$AUTOBUILD_CONFIG_ROOT/autobuild_common.env"
+require_file "$V100_CONFIG"
+require_file "$MASTER_CONFIG"
+require_file "$ZEPHYROS_CONFIG"
+require_file "$GDM7275X_LINUXOS_CONFIG"
+require_file "$GDM7243A_UTKERNEL_CONFIG"
+require_file "$GDM7243ST_UTKERNEL_CONFIG"
+require_file "$GDM7243I_ZEPHYR_CONFIG"
+
+# shellcheck disable=SC1090
+. "$AUTOBUILD_CONFIG_ROOT/autobuild_common.env"
+if [ "${SAMBA_UPLOAD_ENABLED:-1}" = "1" ] && [ -n "${SAMBA_UPLOAD_LOCAL_DIR:-}" ]; then
+    samba_probe="$SAMBA_UPLOAD_LOCAL_DIR/.autobuild_write_test_$$"
+    if ! touch "$samba_probe" 2>/dev/null; then
+        echo "Samba upload local dir is not writable: $SAMBA_UPLOAD_LOCAL_DIR"
+        echo "Mount/login to Samba first, then rerun this installer."
+        exit 1
+    fi
+    rm -f "$samba_probe"
 fi
 
 mkdir -p "$V100_LOG_ROOT" "$MASTER_LOG_ROOT" "$ZEPHYROS_LOG_ROOT" \

@@ -3,6 +3,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+AUTOBUILD_CONFIG_ROOT="${AUTOBUILD_CONFIG_ROOT:-$SCRIPT_DIR/config}"
 WORK_ROOT="${GCT_WORK_ROOT:-$HOME/gct_workspace}"
 AUTOBUILD_ROOT="${AUTOBUILD_ROOT:-$WORK_ROOT/autobuild}"
 AUTOBUILD_LOG_ROOT="${AUTOBUILD_LOG_ROOT:-$AUTOBUILD_ROOT/logs}"
@@ -25,13 +26,13 @@ ZEPHYROS_SCRIPT_PATH="$SCRIPT_DIR/zephyros_autobuild.sh"
 OS_SCRIPT_PATH="$SCRIPT_DIR/os_autobuild.sh"
 NOTIFIER_SCRIPT_PATH="$SCRIPT_DIR/send_daily_autobuild_report.sh"
 
-V100_CONFIG="$HOME/.config/openwrt_v1.00_autobuild.env"
-MASTER_CONFIG="$HOME/.config/openwrt_master_autobuild.env"
-GDM7275X_LINUXOS_CONFIG="$HOME/.config/gdm7275x_linuxos_master_autobuild.env"
-ZEPHYROS_CONFIG="$HOME/.config/zephyros_autobuild.env"
-GDM7243A_UTKERNEL_CONFIG="$HOME/.config/gdm7243a_utkernel_autobuild.env"
-GDM7243ST_UTKERNEL_CONFIG="$HOME/.config/gdm7243st_utkernel_autobuild.env"
-GDM7243I_ZEPHYR_CONFIG="$HOME/.config/gdm7243i_zephyr_v2.3_autobuild.env"
+V100_CONFIG="$AUTOBUILD_CONFIG_ROOT/openwrt_v1.00_autobuild.env"
+MASTER_CONFIG="$AUTOBUILD_CONFIG_ROOT/openwrt_master_autobuild.env"
+GDM7275X_LINUXOS_CONFIG="$AUTOBUILD_CONFIG_ROOT/gdm7275x_linuxos_master_autobuild.env"
+ZEPHYROS_CONFIG="$AUTOBUILD_CONFIG_ROOT/zephyros_autobuild.env"
+GDM7243A_UTKERNEL_CONFIG="$AUTOBUILD_CONFIG_ROOT/gdm7243a_utkernel_autobuild.env"
+GDM7243ST_UTKERNEL_CONFIG="$AUTOBUILD_CONFIG_ROOT/gdm7243st_utkernel_autobuild.env"
+GDM7243I_ZEPHYR_CONFIG="$AUTOBUILD_CONFIG_ROOT/gdm7243i_zephyr_v2.3_autobuild.env"
 
 V100_CRON_LOG="$AUTOBUILD_LOG_ROOT/openwrt/v1.00/cron_runner.log"
 MASTER_CRON_LOG="$AUTOBUILD_LOG_ROOT/openwrt/master/cron_runner.log"

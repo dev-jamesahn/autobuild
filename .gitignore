@@ -1,5 +1,6 @@
 # Local account configuration and secrets
 *.env
+!config/*.env
 .env
 .env.*
 
@@ -15,4 +16,3 @@ runtime/
 *.swp
 *~
 .DS_Store
-

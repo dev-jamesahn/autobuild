@@ -43,7 +43,11 @@ chmod +x ~/gct-build-tools/autobuild/*.sh
 ~/gct-build-tools/autobuild/install_autobuild_cron.sh
 ```
 
-Account-specific settings belong in `~/.config/*.env`, not in this repository.
+Shared autobuild settings live in `config/*.env` inside this repository. After
+`git pull`, rerun `install_autobuild_cron.sh` so cron points at the repository
+config files. Samba credentials are not stored in env files; mount/login to the
+Samba share once before installing cron so the installer can verify write
+access.
 
 Daily build logs are written under `~/gct_workspace/autobuild/logs`. Logs and
 selected artifacts from successful builds are uploaded to:

@@ -7,7 +7,9 @@ RUN_DATE="$(date +%Y%m%d)"
 START_EPOCH="$(date +%s)"
 
 BASE_DIR="$HOME"
-CONFIG_FILE="${CONFIG_FILE:-$HOME/.config/autobuild_common.env}"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+AUTOBUILD_CONFIG_ROOT="${AUTOBUILD_CONFIG_ROOT:-$SCRIPT_DIR/config}"
+CONFIG_FILE="${CONFIG_FILE:-$AUTOBUILD_CONFIG_ROOT/autobuild_common.env}"
 RUN_USER="${USER:-${LOGNAME:-$(id -un)}}"
 
 if [ -f "$CONFIG_FILE" ]; then
