@@ -133,6 +133,7 @@ generate_fw_build_info() {
                 print "    date   : N/A"
                 print "    subject: N/A"
             }
+            print ""
         }
     ' "$DAILY_STATUS_FILE" > "$FW_BUILD_INFO_FILE"
 }
