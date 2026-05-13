@@ -69,8 +69,12 @@ generate_fw_build_info() {
                 return
             }
             git_info[section] = git
+            result_info[section] = result
+            failure_analysis_info[section] = failure_analysis
             section = ""
             git = ""
+            result = ""
+            failure_analysis = ""
             in_git = 0
         }
 
@@ -82,6 +86,18 @@ generate_fw_build_info() {
 
         /^Git log[[:space:]]*:/ {
             in_git = 1
+            next
+        }
+
+        /^Result[[:space:]]*:/ {
+            result = $0
+            sub(/^Result[[:space:]]*:[[:space:]]*/, "", result)
+            next
+        }
+
+        /^Failure analysis[[:space:]]*:/ {
+            failure_analysis = $0
+            sub(/^Failure analysis[[:space:]]*:[[:space:]]*/, "", failure_analysis)
             next
         }
 
@@ -121,7 +137,16 @@ generate_fw_build_info() {
         }
 
         function print_entry(title, key) {
-            print "  - " title
+            status = "UNKNOWN"
+            if (result_info[key] == "SUCCESS") {
+                status = "PASS"
+            } else if (result_info[key] == "FAIL") {
+                status = "FAIL"
+            } else if (result_info[key] != "") {
+                status = result_info[key]
+            }
+
+            print "  - " title " : " status
             if (git_info[key] != "") {
                 formatted = git_info[key]
                 gsub(/^  /, "    ", formatted)
@@ -132,6 +157,9 @@ generate_fw_build_info() {
                 print "    author : N/A"
                 print "    date   : N/A"
                 print "    subject: N/A"
+            }
+            if (status == "FAIL" && failure_analysis_info[key] != "") {
+                print "    Failure analysis : " failure_analysis_info[key]
             }
             print ""
         }
