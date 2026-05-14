@@ -420,6 +420,7 @@ append_git_commit_details() {
 
 extract_failure_analysis() {
     local source_log=$1
+    local final_make_error=""
     local root_error=""
     local package_error=""
     local source_location=""
@@ -434,45 +435,87 @@ extract_failure_analysis() {
         return
     fi
 
+    final_make_error="$(grep -aEn 'make(\[[0-9]+\])?: \*\*\* \[[^]]+\] Error [0-9]+' "$source_log" 2>/dev/null \
+        | grep -aF "$OPENWRT_DIR" \
+        | grep -avE 'Error [0-9]+ \(ignored\)|include/toplevel\.mk|target/Makefile|package/Makefile|tools/Makefile' \
+        | tail -n 1 | tr -d '\r' || true)"
+    if [ -z "$final_make_error" ]; then
+        final_make_error="$(grep -aEn 'make(\[[0-9]+\])?: \*\*\* \[[^]]+\] Error [0-9]+' "$source_log" 2>/dev/null \
+        | grep -avE 'Error [0-9]+ \(ignored\)|include/toplevel\.mk|target/Makefile|package/Makefile|tools/Makefile' \
+        | tail -n 1 | tr -d '\r' || true)"
+    fi
+    if [ -z "$final_make_error" ]; then
+        final_make_error="$(grep -aEn 'make(\[[0-9]+\])?: \*\*\* \[[^]]+\] Error [0-9]+' "$source_log" 2>/dev/null \
+            | grep -avE 'Error [0-9]+ \(ignored\)' \
+            | tail -n 1 | tr -d '\r' || true)"
+    fi
     root_error="$(grep -aEn 'fatal error:|[[:space:]]error:|undefined reference|cannot find|No such file or directory|[[:space:]]\*\*\* .*Stop\.|[[:space:]]\*\*\* .*Error' "$source_log" 2>/dev/null \
-        | grep -avE 'ERROR: package/|fatal: not a git repository|/bin/find:|/find:|grep: .*binary file matches' \
-        | head -n 1 | tr -d '\r' || true)"
+        | grep -avE 'ERROR: package/|fatal: not a git repository|/bin/find:|/find:|grep: .*binary file matches|error: .#.+comment at start of rule is unportable' \
+        | tail -n 1 | tr -d '\r' || true)"
     package_error="$(grep -aE 'ERROR: package/.*failed to build' "$source_log" 2>/dev/null | tail -n 1 | tr -d '\r' | sed -E 's/\x1B\[[0-9;]*[mK]//g; s/^[[:space:]]*//' || true)"
 
-    if [ -z "$root_error" ] && [ -z "$package_error" ]; then
+    if [ -z "$final_make_error" ] && [ -z "$root_error" ] && [ -z "$package_error" ]; then
         FAILURE_ANALYSIS=""
         return
     fi
 
-    if [ -n "$root_error" ]; then
-        source_path="$(printf '%s\n' "$root_error" | sed -E 's#^[0-9]+:([^:]+):[0-9]+:.*#\1#')"
-        source_line="$(printf '%s\n' "$root_error" | sed -E 's#^[0-9]+:[^:]+:([0-9]+):.*#\1#')"
-        message="$(printf '%s\n' "$root_error" | sed -E 's#^[0-9]+:([^:]+:)?([0-9]+:)?([0-9]+:)?[[:space:]]*##')"
-
-        if [ -n "$source_path" ] && [ "$source_path" != "$root_error" ]; then
+    if [ -n "$final_make_error" ]; then
+        message="$(printf '%s\n' "$final_make_error" | sed -E 's#^[0-9]+:[[:space:]]*##')"
+        source_path="$(printf '%s\n' "$final_make_error" | sed -nE 's#^[0-9]+:.*\[[^]]*: ([^]]+)\] Error [0-9]+.*#\1#p')"
+        if [ -n "$source_path" ]; then
             if [ -f "$source_path" ]; then
                 source_path="$(realpath "$source_path" 2>/dev/null || printf '%s' "$source_path")"
             fi
             source_location="$source_path"
-            if [ -n "$source_line" ] && [ "$source_line" != "$root_error" ]; then
-                source_location="$source_location:$source_line"
-            fi
             source_rel="${source_path#$OPENWRT_DIR/}"
             case "$source_rel" in
                 build_dir/*/component/*|gdm/component/*)
                     repo_hint="linuxos component"
                     ;;
+                build_dir/*/image-*|target/*)
+                    repo_hint="OpenWrt target"
+                    ;;
                 package/*)
                     repo_hint="OpenWrt package"
-                    ;;
-                target/*)
-                    repo_hint="OpenWrt target"
                     ;;
             esac
         fi
     fi
 
-    if [ -n "$package_error" ]; then
+    if [ -n "$root_error" ]; then
+        if [ -z "$message" ]; then
+            message="$(printf '%s\n' "$root_error" | sed -E 's#^[0-9]+:([^:]+:)?([0-9]+:)?([0-9]+:)?[[:space:]]*##')"
+        fi
+
+        if [ -z "$source_location" ]; then
+            source_path="$(printf '%s\n' "$root_error" | sed -E 's#^[0-9]+:([^:]+):[0-9]+:.*#\1#')"
+            source_line="$(printf '%s\n' "$root_error" | sed -E 's#^[0-9]+:[^:]+:([0-9]+):.*#\1#')"
+
+            if [ -n "$source_path" ] && [ "$source_path" != "$root_error" ]; then
+                if [ -f "$source_path" ]; then
+                    source_path="$(realpath "$source_path" 2>/dev/null || printf '%s' "$source_path")"
+                fi
+                source_location="$source_path"
+                if [ -n "$source_line" ] && [ "$source_line" != "$root_error" ]; then
+                    source_location="$source_location:$source_line"
+                fi
+                source_rel="${source_path#$OPENWRT_DIR/}"
+                case "$source_rel" in
+                    build_dir/*/component/*|gdm/component/*)
+                        repo_hint="linuxos component"
+                        ;;
+                    package/*)
+                        repo_hint="OpenWrt package"
+                        ;;
+                    target/*)
+                        repo_hint="OpenWrt target"
+                        ;;
+                esac
+            fi
+        fi
+    fi
+
+    if [ -n "$package_error" ] && [ -z "$final_make_error" ]; then
         FAILURE_ANALYSIS="$package_error"
     fi
     if [ -n "$message" ]; then
