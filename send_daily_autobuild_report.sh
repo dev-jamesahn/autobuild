@@ -416,9 +416,9 @@ for section in sections:
     if failure_analysis:
         card_lines.append(f"<div><strong>Failure analysis:</strong> {escape(failure_analysis)}</div>")
     if log_path:
-        card_lines.append(f"<div><strong>Log PATH:</strong> <span style='font-family:monospace;color:#0b63ce;'>{escape(log_path)}</span></div>")
+        card_lines.append(f"<div><strong>Log :</strong> <span style='font-family:monospace;color:#0b63ce;'>{escape(log_path)}</span></div>")
     if artifact_path:
-        card_lines.append(f"<div><strong>Image PATH:</strong> <span style='font-family:monospace;color:#0b63ce;'>{escape(artifact_path)}</span></div>")
+        card_lines.append(f"<div><strong>Image :</strong> <span style='font-family:monospace;color:#0b63ce;'>{escape(artifact_path)}</span></div>")
 
     card_lines.append("</div></div>")
     if model_name not in model_index:
