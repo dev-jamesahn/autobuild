@@ -307,6 +307,41 @@ def extract_indented_block(lines, header):
     return block
 
 
+def extract_failure_analysis(lines):
+    failure_analysis = extract_value(lines, "Failure analysis")
+    if failure_analysis:
+        return failure_analysis
+
+    fail_reason = extract_value(lines, "Fail reason")
+    if fail_reason:
+        return fail_reason
+
+    report_path = extract_value(lines, "Failure rpt")
+    if not report_path or not os.path.isfile(report_path):
+        return ""
+
+    with open(report_path, "r", encoding="utf-8", errors="replace") as fp:
+        report_lines = [line.rstrip("\n") for line in fp]
+
+    in_block = False
+    collected = []
+    for line in report_lines:
+        stripped = line.strip()
+        if stripped == "[Failure analysis]":
+            in_block = True
+            continue
+        if in_block and stripped == "[Recent errors]":
+            break
+        if in_block:
+            if stripped:
+                collected.append(stripped)
+            continue
+        if stripped.startswith("Fail reason"):
+            return stripped.split(":", 1)[1].strip()
+
+    return " ".join(collected).strip()
+
+
 def safe_name(value):
     safe = "".join(ch if ch.isalnum() or ch in "._-" else "_" for ch in value)
     safe = safe.strip("_")
@@ -402,8 +437,7 @@ for section in sections:
     display_item_name = item_name.replace("OpenWrt", "OpenWRT", 1)
     result = extract_value(lines, "Result")
     duration = extract_value(lines, "Duration")
-    fail_reason = extract_value(lines, "Fail reason")
-    failure_analysis = extract_value(lines, "Failure analysis")
+    failure_analysis = extract_failure_analysis(lines)
     log_path = display_upload_path(section["name"], item_name, "Log")
     artifact_path = display_upload_path(section["name"], item_name, "Image") if result == "SUCCESS" else ""
     git_lines = extract_indented_block(lines, "Git log")

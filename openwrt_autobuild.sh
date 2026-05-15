@@ -659,6 +659,9 @@ finalize() {
             FAIL_REASON="Command failed during stage: $CURRENT_STAGE"
         fi
         analyze_failure
+        if [ -z "$FAILURE_ANALYSIS" ]; then
+            FAILURE_ANALYSIS="$FAIL_REASON"
+        fi
     fi
 
     collect_main_repo_metadata
