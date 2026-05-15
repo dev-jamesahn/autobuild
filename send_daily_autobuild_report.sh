@@ -380,6 +380,22 @@ def item_sort_key(item):
     }
     return order.get(item["name"], 99), item["name"]
 
+
+def extract_manifest_lines(lines, section_name):
+    if "OpenWrt " not in section_name:
+        return []
+    manifest_lines = extract_indented_block(lines, "Manifest hashes")
+    cleaned = []
+    for line in manifest_lines:
+        if ":" not in line:
+            continue
+        key, value = line.split(":", 1)
+        key = key.strip()
+        value = value.strip()
+        if key and value:
+            cleaned.append(f"{key} : {value}")
+    return cleaned
+
 for section in sections:
     lines = section["lines"]
     model_name, item_name = split_model_item(section["name"])
@@ -391,6 +407,7 @@ for section in sections:
     log_path = display_upload_path(section["name"], item_name, "Log")
     artifact_path = display_upload_path(section["name"], item_name, "Image") if result == "SUCCESS" else ""
     git_lines = extract_indented_block(lines, "Git log")
+    manifest_lines = extract_manifest_lines(lines, section["name"])
     status_color = "#177245" if result == "SUCCESS" else "#b42318" if result == "FAIL" else "#475467"
     status_bg = "#ecfdf3" if result == "SUCCESS" else "#fef3f2" if result == "FAIL" else "#f2f4f7"
 
@@ -412,6 +429,14 @@ for section in sections:
             "<pre style='margin:4px 0 0 18px;padding:8px 10px;background:#f8fafc;border:1px solid #e4e7ec;border-radius:6px;"
             "font-family:Consolas,Menlo,monospace;font-size:12px;line-height:1.45;color:#344054;white-space:pre-wrap;'>"
             f"{git_block}</pre>"
+        )
+    if manifest_lines:
+        manifest_block = "\n".join(escape(line) for line in manifest_lines)
+        card_lines.append(
+            "<div><strong>Manifest hash:</strong></div>"
+            "<pre style='margin:4px 0 0 18px;padding:8px 10px;background:#f8fafc;border:1px solid #e4e7ec;border-radius:6px;"
+            "font-family:Consolas,Menlo,monospace;font-size:12px;line-height:1.45;color:#344054;white-space:pre-wrap;'>"
+            f"{manifest_block}</pre>"
         )
     if failure_analysis:
         card_lines.append(f"<div><strong>Failure analysis:</strong> {escape(failure_analysis)}</div>")
